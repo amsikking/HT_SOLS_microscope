@@ -113,7 +113,7 @@ class GuiCamera:
             slider_length=250,
             slider_flipped=True,
             min_value=12,
-            max_value=500,
+            max_value=2000,
             default_value=250,
             row=1)
         self.width_px = tki_cw.CheckboxSliderSpinbox(
@@ -149,6 +149,7 @@ class GuiFocusPiezo:
 class GuiAcquisition:
     def __init__(self, master):
         self.frame = tk.LabelFrame(master, text='ACQUISITION', bd=6)
+        self.frame.bind('<Enter>', self.get_tkfocus)
         self.frame.grid(
             row=0, column=4, rowspan=2, padx=20, pady=20, sticky='n')
         self.spinbox_width = 20
@@ -200,7 +201,10 @@ class GuiAcquisition:
         # get scope ready:
 ##        self.loop_snoutfocus()
         self.scope.acquire()
-
+        
+    def get_tkfocus(self, event):   # event is not used here (.bind)
+        self.frame.focus_set()      # take from other widgets to force update
+        
     def loop_snoutfocus(self):
         self.scope.snoutfocus()
         self.frame.after(120000, self.loop_snoutfocus)
@@ -318,13 +322,14 @@ class GuiAcquisition:
             width=self.spinbox_width)
 
     def init_apply_settings_and_print_button(self):
-        calculate_memory_and_time_button = tk.Button(
+        apply_settings_and_print_button = tk.Button(
             self.frame,
             text="Print memory + time",
             command=self.apply_settings_and_print,
             width=self.button_width,
             height=self.button_height)
-        calculate_memory_and_time_button.grid(row=7, column=0, padx=10, pady=10)
+        apply_settings_and_print_button.bind('<Enter>', self.get_tkfocus)
+        apply_settings_and_print_button.grid(row=7, column=0, padx=10, pady=10)
 
     def apply_settings_and_print(self):
         self.apply_settings(_print=True)
@@ -348,6 +353,7 @@ class GuiAcquisition:
                                           command=self.run_acquisition,
                                           width=self.button_width,
                                           height=self.button_height)
+        run_aquisition_button.bind('<Enter>', self.get_tkfocus)
         run_aquisition_button.grid(row=10, column=0, padx=10, pady=10)
 
     def run_acquisition(self):
@@ -459,18 +465,11 @@ class GuiAcquisition:
             data_gb + preview_gb) * self.acquisitions.spinbox_value
         print('Total storaged needed (GB) = %0.6f'%total_storage_gb)
         # calculate time:
-        period_us = (self.scope.camera.exposure_us +
-                     self.scope.camera.rolling_time_us + 30) # (29us jitter)
-        slice_time_s = 1e-6 * period_us * len(self.channels_per_slice)
-        volume_time_s = slice_time_s * self.scope.slices_per_volume       
-        buffer_time_s = volume_time_s * self.volumes.spinbox_value
-        self.total_acquire_time_s = (
-            buffer_time_s + self.delay_s.spinbox_value) * (
-                self.acquisitions.spinbox_value)
+        acquire_time_s = self.scope.buffer_time_s + self.delay_s.spinbox_value
+        total_time_s = acquire_time_s * self.acquisitions.spinbox_value
         print('Total acquisition time (s) = %0.6f (%0.2f min)'%(
-            self.total_acquire_time_s, (self.total_acquire_time_s / 60)))
-        vps = 1/volume_time_s
-        print('Vps ~ %0.6f'%vps)
+            total_time_s, (total_time_s / 60)))
+        print('Vps ~ %0.6f'%self.scope.volumes_per_s)
         return None
 
     def close(self):
