@@ -14,8 +14,8 @@ if __name__ == '__main__': # required block for sols_microscope
         power_per_channel=(10,),    # match channels 0-100% i.e. (5,0,20,30,100)
         filter_wheel_position=0,
         ## filter wheel options:        0:blocked,      1:open
-        # 2:ET450/50M,  3:ET525/50M,    4:ET600/50M,    5:ET690/50M
-        # 6:ZETquadM,   7:LP02-488RU    8:LP02-561RU    9:empty
+        # 2:ET445/58M,  3:ET525/50M,    4:ET600/50M,    5:ET706/95M
+        # 6:ZETquadM,   7:(available)   8:(available)   9:(available)
         illumination_time_us=1e3,
         height_px=248,
         width_px=1060,
