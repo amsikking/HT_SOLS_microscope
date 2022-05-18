@@ -117,8 +117,6 @@ class Microscope:
         if self.verbose: print("\n%s: opening snoutfocus piezo..."%self.name)
         self.snoutfocus_controller = thorlabs_MDT694B.Controller(
             which_port='COM4', verbose=False)
-## Temp hack:
-        self.snoutfocus_controller.set_voltage(75/2)
         if self.verbose: print("\n%s: -> snoutfocus piezo open."%self.name)        
         atexit.register(self.snoutfocus_controller.close)
 
@@ -196,8 +194,7 @@ class Microscope:
         jitter_px = max(self.ao.s2p(30e-6), 1)
         period_px = max(exposure_px, rolling_px) + jitter_px
         # Galvo voltages:
-## TODO: currently approximate -> watch out for polarity!
-        galvo_volts_per_um = -1.2 / 100 # calibrated using graticule
+        galvo_volts_per_um = -1.146 / 100 # calibrated using graticule
         galvo_scan_volts = galvo_volts_per_um * self.scan_range_um
         galvo_voltages = np.linspace(
             - galvo_scan_volts/2, galvo_scan_volts/2, self.slices_per_volume)
@@ -777,8 +774,10 @@ class DataPreview:
                 # Pass projections into allocated memory:
                 m = allocated_memory # keep code short!
                 m[v, c, l_px:y_px + l_px, l_px:x_px + l_px] = O1_img
-                m[v, c, y_px + 2*l_px:, l_px:x_px + l_px] = np.flipud(scan_img)
-                m[v, c, l_px:y_px + l_px, x_px + 2*l_px:] = np.fliplr(width_img)
+##                m[v, c, y_px + 2*l_px:, l_px:x_px + l_px] = np.flipud(scan_img)
+                m[v, c, y_px + 2*l_px:, l_px:x_px + l_px] = scan_img
+##                m[v, c, l_px:y_px + l_px, x_px + 2*l_px:] = np.fliplr(width_img)
+                m[v, c, l_px:y_px + l_px, x_px + 2*l_px:] = width_img
                 m[v, c, y_px + 2*l_px:, x_px + 2*l_px:] = np.full(
                     (scan_img.shape[0], width_img.shape[1]), 0)
                 # Add line separations between projections:
