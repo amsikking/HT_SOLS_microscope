@@ -78,7 +78,7 @@ class GuiGalvo:
             slider_length=350,
             tickinterval=10,
             min_value=1,
-            max_value=400,
+            max_value=250,
             default_value=100)
         self.voxel_aspect_ratio = tki_cw.CheckboxSliderSpinbox(
             frame,
@@ -113,7 +113,7 @@ class GuiCamera:
             slider_length=250,
             slider_flipped=True,
             min_value=12,
-            max_value=2000,
+            max_value=1200,
             default_value=250,
             row=1)
         self.width_px = tki_cw.CheckboxSliderSpinbox(
@@ -122,7 +122,7 @@ class GuiCamera:
             checkbox_enabled=False,
             slider_length=250,
             min_value=60,
-            max_value=2000,
+            max_value=1500,
             default_value=1000,
             row=2,
             column=1,
