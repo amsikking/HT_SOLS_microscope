@@ -703,7 +703,9 @@ class DataPreview:
         # Get image size with projections:
         ts_px = 0
         if timestamp_mode != "off": ts_px = 8 # ignore timestamps
-        height_px = height_px - ts_px
+        # The pco_edge42_cl has unreliable pixel rows at the top and bottom,
+        # so for clean previews is best to remove them with the timestamp
+        height_px = height_px - 2 * ts_px # crop top and bottom
         x_px = width_px
         y_px = int(round((height_px + prop_px_shear_max) * np.cos(tilt)))
         z_px = int(round(height_px * np.sin(tilt)))
@@ -731,8 +733,8 @@ class DataPreview:
             return_value = allocated_memory
         ts_px = 0
         if timestamp_mode != "off": ts_px = 8 # ignore timestamps
-        prop_px = h_px - ts_px # i.e. prop_px = h_px
-        data = data[:, :, :, ts_px:, :]
+        prop_px = h_px - 2 * ts_px # i.e. prop_px = h_px (crop top and bottom)
+        data = data[:, :, :, ts_px:h_px - ts_px, :]
         scan_step_size_um = calculate_scan_step_size_um(scan_step_size_px)
         # Calculate max px shear on the propagation axis for an 'O1' projection:
         # -> more shear than for a 'native' projection
@@ -846,8 +848,10 @@ class DataRoi:
             min_index_ch, max_index_ch = [], []
             for c in range(ch):
                 # Max project volume to images:
-                width_projection = np.amax(data[v, :, c, ts_px:, :], axis=2)
-                scan_projection  = np.amax(data[v, :, c, ts_px:, :], axis=0)
+                width_projection = np.amax(
+                    data[v, :, c, ts_px:h_px - ts_px, :], axis=2)
+                scan_projection  = np.amax(
+                    data[v, :, c, ts_px:h_px - ts_px, :], axis=0)
                 # Max project images to lines and smooth to reject hot pixels:
                 scan_line  = gaussian_filter1d(
                     np.max(width_projection, axis=1), gaussian_filter_std)
