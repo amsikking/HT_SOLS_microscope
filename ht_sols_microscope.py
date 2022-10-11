@@ -65,6 +65,9 @@ class Microscope:
         self.max_data_buffers = 4 # camera, preview, display, filesave
         self.max_preview_buffers = self.max_data_buffers
         self.preview_line_px = 10 # line thickness for previews
+        # The pco_edge42_cl has unreliable pixel rows at the top and bottom,
+        # so for clean previews it's best to remove them:
+        self.preview_crop_px = 3 # crop top and bottom pixel rows for previews
         self.num_active_data_buffers = 0
         self.num_active_preview_buffers = 0
         self.timestamp_mode = "binary+ASCII"
@@ -166,6 +169,7 @@ class Microscope:
                                           self.width_px,
                                           self.scan_step_size_px,
                                           self.preview_line_px,
+                                          self.preview_crop_px,
                                           self.timestamp_mode)
         self.bytes_per_preview_buffer = 2 * int(np.prod(preview_shape))
         if self.bytes_per_preview_buffer > self.max_bytes_per_buffer:
@@ -283,6 +287,7 @@ class Microscope:
             'focus_piezo_z_um':self.focus_piezo_z_um,
             'XY_stage_position_mm':self.XY_stage_position_mm,
             'preview_line_px':self.preview_line_px,
+            'preview_crop_px':self.preview_crop_px,
             'MRR':MRR,
             'Mtot':Mtot,
             'tilt':tilt,
@@ -337,7 +342,8 @@ class Microscope:
         max_bytes_per_buffer=None,  # Int
         max_data_buffers=None,      # Int
         max_preview_buffers=None,   # Int
-        preview_line_px=None, # Int
+        preview_line_px=None,       # Int
+        preview_crop_px=None,       # Int
         ):
         args = locals()
         args.pop('self')
@@ -580,6 +586,7 @@ class Microscope:
             w_px = self.width_px
             s_px = self.scan_step_size_px
             l_px = self.preview_line_px
+            c_px = self.preview_crop_px
             ts   = self.timestamp_mode
             im   = self.images
             data_buffer = self._get_data_buffer((im, h_px, w_px), 'uint16')
@@ -604,10 +611,10 @@ class Microscope:
             # Acquisition is 3D, but display and filesaving are 5D:
             data_buffer = data_buffer.reshape(vo, sl, ch, h_px, w_px)
             preview_shape = DataPreview.shape(
-                vo, sl, ch, h_px, w_px, s_px, l_px, ts)
+                vo, sl, ch, h_px, w_px, s_px, l_px, c_px, ts)
             preview_buffer = self._get_preview_buffer(preview_shape, 'uint16')
-            self.datapreview.get(
-                data_buffer, s_px, l_px, ts, allocated_memory=preview_buffer)
+            self.datapreview.get(data_buffer, s_px, l_px, c_px, ts,
+                                 allocated_memory=preview_buffer)
             if display:
                 custody.switch_from(self.datapreview, to=self.display)
                 self.display.show_image(preview_buffer)
@@ -693,6 +700,7 @@ class DataPreview:
               width_px,
               scan_step_size_px,
               preview_line_px,
+              preview_crop_px,
               timestamp_mode):
         # Calculate max pixel shear:
         scan_step_size_um = calculate_scan_step_size_um(scan_step_size_px)
@@ -701,14 +709,12 @@ class DataPreview:
         prop_px_shear_max = int(np.rint(
             prop_px_per_scan_step * (slices_per_volume - 1)))
         # Get image size with projections:
-        ts_px = 0
-        if timestamp_mode != "off": ts_px = 8 # ignore timestamps
-        # The pco_edge42_cl has unreliable pixel rows at the top and bottom,
-        # so for clean previews is best to remove them with the timestamp
-        height_px = height_px - 2 * ts_px # crop top and bottom
+        t_px, b_px = 2 * (preview_crop_px,) # crop top and bottom pixel rows
+        if timestamp_mode == "binary+ASCII": t_px = 8 # ignore timestamps
+        h_px = height_px - t_px - b_px
         x_px = width_px
-        y_px = int(round((height_px + prop_px_shear_max) * np.cos(tilt)))
-        z_px = int(round(height_px * np.sin(tilt)))
+        y_px = int(round((h_px + prop_px_shear_max) * np.cos(tilt)))
+        z_px = int(round(h_px * np.sin(tilt)))
         shape = (volumes_per_buffer,
                  num_channels_per_slice,
                  y_px + z_px + 2 * preview_line_px,
@@ -719,22 +725,24 @@ class DataPreview:
             data, # raw 5D data, 'tzcyx' input -> 'tcyx' output
             scan_step_size_px,
             preview_line_px,
+            preview_crop_px,
             timestamp_mode,
             allocated_memory=None):
         vo, slices, ch, h_px, w_px = data.shape
-        s_px, l_px, ts = scan_step_size_px, preview_line_px, timestamp_mode
+        s_px, l_px, c_px = scan_step_size_px, preview_line_px, preview_crop_px
         # Get preview shape and check allocated memory (or make new array):
-        preview_shape = self.shape(vo, slices, ch, h_px, w_px, s_px, l_px, ts)
+        preview_shape = self.shape(
+            vo, slices, ch, h_px, w_px, s_px, l_px, c_px, timestamp_mode)
         if allocated_memory is not None:
             assert allocated_memory.shape == preview_shape
             return_value = None # use given memory and avoid return
         else: # make new array and return
             allocated_memory = np.zeros(preview_shape, 'uint16')
             return_value = allocated_memory
-        ts_px = 0
-        if timestamp_mode != "off": ts_px = 8 # ignore timestamps
-        prop_px = h_px - 2 * ts_px # i.e. prop_px = h_px (crop top and bottom)
-        data = data[:, :, :, ts_px:h_px - ts_px, :]
+        t_px, b_px = 2 * (preview_crop_px,) # crop top and bottom pixel rows
+        if timestamp_mode == "binary+ASCII": t_px = 8 # ignore timestamps
+        prop_px = h_px - t_px - b_px # i.e. prop_px = h_px (with cropping)
+        data = data[:, :, :, t_px:h_px - b_px, :]
         scan_step_size_um = calculate_scan_step_size_um(scan_step_size_px)
         # Calculate max px shear on the propagation axis for an 'O1' projection:
         # -> more shear than for a 'native' projection
@@ -805,11 +813,16 @@ class DataZ:
         height_px,
         width_px,       
         preview_line_px,
+        preview_crop_px,
+        timestamp_mode,
         method='max_gradient',
         gaussian_filter_std=3,
         ):
         assert method in ('max_intensity', 'max_gradient')
-        z_px = int(round(height_px * np.sin(tilt))) # DataPreview definition
+        t_px, b_px = 2 * (preview_crop_px,) # crop top and bottom pixel rows
+        if timestamp_mode == "binary+ASCII": t_px = 8 # ignore timestamps
+        h_px = height_px - t_px - b_px
+        z_px = int(round(h_px * np.sin(tilt))) # DataPreview definition
         inspect_me = preview_image[:z_px, preview_line_px:width_px]
         intensity_line = np.average(inspect_me, axis=1)[::-1] # O1 -> coverslip
         intensity_line_smooth = gaussian_filter1d(
@@ -817,13 +830,10 @@ class DataZ:
         if method == 'max_intensity':
             max_z_intensity_um = np.argmax(intensity_line_smooth) * sample_px_um
             return max_z_intensity_um
-        max_intensity = np.max(intensity_line_smooth)
         intensity_gradient = np.zeros((len(intensity_line_smooth) - 1))
         for px in range(len(intensity_line_smooth) - 1):
             intensity_gradient[px] = (
                 intensity_line_smooth[px + 1] - intensity_line_smooth[px])
-            if intensity_line_smooth[px + 1] == max_intensity:
-                break
         max_z_gradient_um = np.argmax(intensity_gradient) * sample_px_um
         return max_z_gradient_um
 
@@ -836,22 +846,23 @@ class DataRoi:
     def get(
         self,
         data, # raw 5D data, 'tzcyx' input -> 'tzcyx' output
+        preview_crop_px,
         timestamp_mode,
         signal_to_bg_ratio=1.2, # adjust for threshold
         gaussian_filter_std=3, # adjust for smoothing/hot pixel rejection
         ):
         vo, slices, ch, h_px, w_px = data.shape
-        ts_px = 0
-        if timestamp_mode != "off": ts_px = 8 # skip timestamp rows
+        t_px, b_px = 2 * (preview_crop_px,) # crop top and bottom pixel rows
+        if timestamp_mode == "binary+ASCII": t_px = 8 # ignore timestamps
         min_index_vo, max_index_vo = [], []
         for v in range(vo):
             min_index_ch, max_index_ch = [], []
             for c in range(ch):
                 # Max project volume to images:
                 width_projection = np.amax(
-                    data[v, :, c, ts_px:h_px - ts_px, :], axis=2)
+                    data[v, :, c, t_px:h_px - b_px, :], axis=2)
                 scan_projection  = np.amax(
-                    data[v, :, c, ts_px:h_px - ts_px, :], axis=0)
+                    data[v, :, c, t_px:h_px - b_px, :], axis=0)
                 # Max project images to lines and smooth to reject hot pixels:
                 scan_line  = gaussian_filter1d(
                     np.max(width_projection, axis=1), gaussian_filter_std)
@@ -870,9 +881,9 @@ class DataRoi:
                     if scan_line[i]  > scan_threshold:
                         min_index_zyx[0] = i
                         break
-                for i in range(h_px):
+                for i in range(h_px - t_px - b_px):
                     if prop_line[i]  > prop_threshold:
-                        min_index_zyx[1] = i + ts_px # put timesamps back
+                        min_index_zyx[1] = i + t_px # put cropped pixels back
                         break
                 for i in range(w_px):
                     if width_line[i] > width_threshold:
@@ -882,9 +893,9 @@ class DataRoi:
                     if scan_line[-i] > scan_threshold:
                         max_index_zyx[0] = max_index_zyx[0] - i
                         break
-                for i in range(h_px):
+                for i in range(h_px - t_px - b_px):
                     if prop_line[-i] > prop_threshold:
-                        max_index_zyx[1] = max_index_zyx[1] - i - ts_px
+                        max_index_zyx[1] = max_index_zyx[1] - i - b_px
                         break
                 for i in range(w_px):
                     if width_line[-i] > width_threshold:
