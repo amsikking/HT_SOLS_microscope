@@ -199,7 +199,8 @@ class GuiAcquisition:
         self.focus_piezo_z_um = self.scope.focus_piezo_z_um
         self.XY_stage_position_mm = self.scope.XY_stage_position_mm
         # get scope ready:
-        self.loop_snoutfocus()
+##        self.loop_snoutfocus()
+        self.scope.snoutfocus_controller.set_voltage(75/2)
         self.scope.acquire()
         
     def get_tkfocus(self, event):   # event is not used here (.bind)
