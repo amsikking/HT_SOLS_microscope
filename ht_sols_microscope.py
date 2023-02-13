@@ -18,6 +18,7 @@ try:
     import pi_C_867_2U2         # github.com/amsikking/pi_C_867_2U2
     import pi_E_709_1C1L        # github.com/amsikking/pi_E_709_1C1L
     import thorlabs_MDT694B     # github.com/amsikking/thorlabs_MDT694B
+    import shm_win_patch        # github.com/amsikking/shm_win_patch
     import concurrency_tools as ct              # github.com/AndrewGYork/tools
     from napari_in_subprocess import display    # github.com/AndrewGYork/tools
 except Exception as e:
@@ -239,7 +240,8 @@ class Microscope:
         plt.xlabel('Seconds')
         plt.show()
 
-    def _prepare_to_save(self, filename, folder_name, description, delay_s):
+    def _prepare_to_save(
+        self, filename, folder_name, description, delay_s, preview_only):
         def make_folders(folder_name):
             os.makedirs(folder_name)
             os.makedirs(folder_name + '\data')
@@ -259,18 +261,17 @@ class Microscope:
         data_path =     folder_name + '\data\\'     + filename
         metadata_path = folder_name + '\metadata\\' + filename
         preview_path =  folder_name + '\preview\\'  + filename
-        self._save_metadata(filename, description, delay_s, metadata_path)
-        return data_path, preview_path
-
-    def _save_metadata(self, filename, description, delay_s, path):
+        # save metadata:
         to_save = {
             'Date':datetime.strftime(datetime.now(),'%Y-%m-%d'),
             'Time':datetime.strftime(datetime.now(),'%H:%M:%S'),
             'filename':filename,
+            'folder_name':folder_name,
             'description':description,
             'delay_s':delay_s,
-            'channels_per_slice':self.channels_per_slice,
-            'power_per_channel':self.power_per_channel,
+            'preview_only':preview_only,
+            'channels_per_slice':tuple(self.channels_per_slice),
+            'power_per_channel':tuple(self.power_per_channel),
             'filter_wheel_position':self.filter_wheel_position,
             'illumination_time_us':self.illumination_time_us,
             'volumes_per_s':self.volumes_per_s,
@@ -295,9 +296,10 @@ class Microscope:
             'voxel_aspect_ratio':calculate_voxel_aspect_ratio(
                 self.scan_step_size_px),
             }
-        with open(os.path.splitext(path)[0] + '.txt', 'w') as file:
+        with open(os.path.splitext(metadata_path)[0] + '.txt', 'w') as file:
             for k, v in to_save.items():
                 file.write(k + ': ' + str(v) + '\n')
+        return data_path, preview_path
 
     def _get_data_buffer(self, shape, dtype):
         while self.num_active_data_buffers >= self.max_data_buffers:
@@ -382,6 +384,9 @@ class Microscope:
                     self.XY_stage.move_mm(x, y, block=False)
                 if XY_stage_position_mm[2] == 'absolute':
                     self.XY_stage.move_mm(x, y, relative=False, block=False)
+            else: # must update XY stage attributes if joystick was used
+                update_XY_stage_position_thread = ct.ResultThread(
+                    target=self.XY_stage.get_position_mm).start()
             if filter_wheel_position is not None:
                 self.filter_wheel.move(filter_wheel_position,
                                        speed=6,
@@ -431,6 +436,9 @@ class Microscope:
                 self.filter_wheel._finish_moving()
             if XY_stage_position_mm is not None:
                 self.XY_stage._finish_moving()
+                self.XY_stage_position_mm = self.XY_stage.x, self.XY_stage.y
+            else:
+                update_XY_stage_position_thread.get_result()
                 self.XY_stage_position_mm = self.XY_stage.x, self.XY_stage.y
             if check_write_voltages_thread:
                 write_voltages_thread.get_result()
@@ -559,7 +567,8 @@ class Microscope:
                 folder_name=None,   # None = new folder, same string = re-use
                 description=None,   # Optional metadata description
                 delay_s=None,       # Optional time delay baked in + Snoutfocus
-                display=True):      # Optional turn off
+                display=True,       # Optional turn off
+                preview_only=False):# Save preview only, raw data discarded
         delay_during_acquire = True # default apply delay_s during acquire task
         if delay_s is not None and delay_s > 3:
             self.snoutfocus(delay_s=delay_s) # Run snoutfocus for longer delays
@@ -574,10 +583,17 @@ class Microscope:
                 return
             if delay_during_acquire and delay_s is not None:
                 time.sleep(delay_s) # simple but not 'us' precise
+            # must update XY stage position attributes in case joystick was used
+            # no thread (blocking) so metatdata in _prepare_to_save is current
+            self.XY_stage_position_mm = self.XY_stage.get_position_mm()
             if filename is not None:
                 prepare_to_save_thread = ct.ResultThread(
                     target=self._prepare_to_save,
-                    args=(filename, folder_name, description, delay_s)).start()
+                    args=(filename,
+                          folder_name,
+                          description,
+                          delay_s,
+                          preview_only)).start()
             # We have custody of the camera so attribute access is safe:
             vo   = self.volumes_per_buffer
             sl   = self.slices_per_volume
@@ -627,7 +643,8 @@ class Microscope:
                     print("%s: saving '%s'"%(self.name, data_path))
                     print("%s: saving '%s'"%(self.name, preview_path))
                 # TODO: consider puting FileSaving in a SubProcess
-                imwrite(data_path, data_buffer, imagej=True)
+                if not preview_only:
+                    imwrite(data_path, data_buffer, imagej=True)
                 imwrite(preview_path, preview_buffer, imagej=True)
                 if self.verbose:
                     print("%s: done saving."%self.name)
@@ -784,10 +801,8 @@ class DataPreview:
                 # Pass projections into allocated memory:
                 m = allocated_memory # keep code short!
                 m[v, c, l_px:y_px + l_px, l_px:x_px + l_px] = O1_img
-##                m[v, c, y_px + 2*l_px:, l_px:x_px + l_px] = np.flipud(scan_img)
-                m[v, c, y_px + 2*l_px:, l_px:x_px + l_px] = scan_img
-##                m[v, c, l_px:y_px + l_px, x_px + 2*l_px:] = np.fliplr(width_img)
-                m[v, c, l_px:y_px + l_px, x_px + 2*l_px:] = width_img
+                m[v, c, y_px + 2*l_px:, l_px:x_px + l_px] = scan_img #np.flipud?
+                m[v, c, l_px:y_px + l_px, x_px + 2*l_px:] = width_img#np.flipud?
                 m[v, c, y_px + 2*l_px:, x_px + 2*l_px:] = np.full(
                     (scan_img.shape[0], width_img.shape[1]), 0)
                 # Add line separations between projections:
@@ -987,6 +1002,7 @@ if __name__ == '__main__':
             description='something...',
             delay_s=0,
             display=True,
+            preview_only=False,
             )
     scope.close()
 
