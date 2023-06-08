@@ -35,7 +35,7 @@ class Microscope:
     def __init__(self,
                  max_allocated_bytes,   # Limit of available RAM for machine
                  ao_rate,               # slow ~1e3, medium ~1e4, fast ~1e5
-                 name='SOLS v1.1',
+                 name='HT-SOLS v1.1',
                  verbose=True):
         self.name = name
         self.verbose = verbose
@@ -106,7 +106,7 @@ class Microscope:
     def _init_filter_wheel(self):
         if self.verbose: print("\n%s: opening filter wheel..."%self.name)
         self.filter_wheel = sutter_Lambda_10_3.Controller(
-            which_port='COM7', verbose=False)
+            which_port='COM10', verbose=False)
         if self.verbose: print("\n%s: -> filter wheel open."%self.name)        
         self.filter_wheel_position = 0
         atexit.register(self.filter_wheel.close)
@@ -120,21 +120,21 @@ class Microscope:
     def _init_snoutfocus(self):
         if self.verbose: print("\n%s: opening snoutfocus piezo..."%self.name)
         self.snoutfocus_controller = thorlabs_MDT694B.Controller(
-            which_port='COM4', verbose=False)
+            which_port='COM12', verbose=False)
         if self.verbose: print("\n%s: -> snoutfocus piezo open."%self.name)        
         atexit.register(self.snoutfocus_controller.close)
 
     def _init_focus_piezo(self):
         if self.verbose: print("\n%s: opening focus piezo..."%self.name)
         self.focus_piezo = pi_E_709_1C1L.Controller(
-            which_port='COM17', z_min_um=0, z_max_um=800, verbose=False)
+            which_port='COM4', z_min_um=0, z_max_um=800, verbose=False)
         if self.verbose: print("\n%s: -> focus piezo open."%self.name)
         atexit.register(self.focus_piezo.close)
 
     def _init_XY_stage(self):
         if self.verbose: print("\n%s: opening XY stage..."%self.name)        
         self.XY_stage = pi_C_867_2U2.Controller(
-            which_port='COM16', verbose=False)
+            which_port='COM5', verbose=False)
         if self.verbose: print("\n%s: -> XY stage open."%self.name)
         atexit.register(self.XY_stage.close)
 
