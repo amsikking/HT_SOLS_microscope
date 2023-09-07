@@ -60,7 +60,7 @@ if __name__ == '__main__': # required block for sols_microscope
     positions = len(XY_stage_positions)
 
     # Make folder name for data:
-    folder_label = 'sols_acquisition_template'  # edit name to preference
+    folder_label = 'ht_sols_acquisition_template'  # edit name to preference
     dt = datetime.strftime(datetime.now(),'%Y-%m-%d_%H-%M-%S_000_')
     folder_name = dt + folder_label
 
