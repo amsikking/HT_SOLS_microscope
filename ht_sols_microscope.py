@@ -138,7 +138,7 @@ class Microscope:
     def _init_lasers(self):
         if self.verbose: print("\n%s: opening lasers..."%self.name)
         self.lasers = coherent_OBIS_LSLX_laser_box.Controller(
-            which_port='COM16', control_mode='analog', verbose=False)
+            which_port='COM22', control_mode='analog', verbose=False)
         for laser in self.lasers.lasers:
             self.lasers.set_enable('ON', laser)
         if self.verbose: print("\n%s: -> lasers open."%self.name)
