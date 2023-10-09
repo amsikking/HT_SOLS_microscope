@@ -21,7 +21,8 @@ try:
     import thorlabs_MDT694B     # github.com/amsikking/thorlabs_MDT694B
     import thorlabs_KSC101      # github.com/amsikking/thorlabs_KSC101
     # https://github.com/amsikking/coherent_OBIS_LSLX_laser_box
-    import coherent_OBIS_LSLX_laser_box    
+    import coherent_OBIS_LSLX_laser_box
+    import thorlabs_MLJ_Z_stage # github.com/amsikking/thorlabs_MLJ_Z_stage
     import shm_win_patch        # github.com/amsikking/shm_win_patch
     import concurrency_tools as ct              # github.com/AndrewGYork/tools
     from napari_in_subprocess import display    # github.com/AndrewGYork/tools
@@ -55,12 +56,15 @@ class Microscope:
             target=self._init_snoutfocus).start()   #1s
         slow_focus_init = ct.ResultThread(
             target=self._init_focus_piezo).start()  #~0.6s
-        slow_stage_init = ct.ResultThread(
+        slow_XY_stage_init = ct.ResultThread(
             target=self._init_XY_stage).start()     #~0.4s
+        slow_Z_stage_init = ct.ResultThread(
+            target=self._init_Z_stage).start()      #~0.3s
         self._init_display()                        #~1.3s
         self._init_datapreview()                    #~0.8s
         self._init_ao(ao_rate)                      #~0.2s
-        slow_stage_init.get_result()
+        slow_Z_stage_init.get_result()
+        slow_XY_stage_init.get_result()
         slow_focus_init.get_result()
         slow_snoutfocus_init.get_result()
         slow_lasers_init.get_result()
@@ -161,6 +165,16 @@ class Microscope:
             which_port='COM20', z_min_um=0, z_max_um=800, verbose=False)
         if self.verbose: print("\n%s: -> focus piezo open."%self.name)
         atexit.register(self.focus_piezo.close)
+
+    def _init_Z_stage(self):
+        if self.verbose: print("\n%s: opening Z stage..."%self.name)
+        self.Z_stage = thorlabs_MLJ_Z_stage.ZStage(
+            which_ports=('COM7','COM9'),
+            limits_mm=(0, 20),
+            velocity_mmps=0.2,
+            verbose=False)
+        if self.verbose: print("\n%s: -> Z stage open."%self.name)
+        atexit.register(self.Z_stage.close)
 
     def _init_XY_stage(self):
         if self.verbose: print("\n%s: opening XY stage..."%self.name)        
@@ -318,6 +332,7 @@ class Microscope:
             'volumes_per_buffer':self.volumes_per_buffer,
             'focus_piezo_z_um':self.focus_piezo_z_um,
             'XY_stage_position_mm':self.XY_stage_position_mm,
+            'Z_stage_position_mm':self.Z_stage.stage1.position_mm,
             'preview_line_px':self.preview_line_px,
             'preview_crop_px':self.preview_crop_px,
             'MRR':MRR,
@@ -696,6 +711,7 @@ class Microscope:
         self.snoutfocus_shutter.close()
         self.focus_piezo.close()
         self.XY_stage.close()
+        self.Z_stage.close()
         self.display.close()
         if self.verbose: print("%s: done closing."%self.name)
 
