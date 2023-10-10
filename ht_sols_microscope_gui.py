@@ -35,6 +35,7 @@ class GuiMicroscope:
         self.init_camera()
         self.init_galvo()
         self.init_focus_piezo()
+        self.init_Z_stage()
         self.init_XY_stage()
         # load microscope GUI's and quit:
         self.init_grid_navigator()  # navigates an XY grid of points
@@ -583,6 +584,140 @@ class GuiMicroscope:
             width=button_width,
             height=button_height)
         button_large_move_down.grid(row=4, column=1, padx=10, pady=10)
+        return None
+
+    def init_Z_stage(self):
+        frame = tk.LabelFrame(self.root, text='Z STAGE', bd=6)
+        frame.grid(row=1, column=3, padx=10, pady=10, sticky='n')
+        button_width, button_height = 25, 2
+        limits_mm = (0, 20)     # range (adjust as needed)
+        limits_mmps = (0.2, 1)  # velocity (adjust as needed)
+        edge_limits_mm = (limits_mm[0] + 0.1, limits_mm[1] - 0.1)
+        # z stage popup:
+        z_stage_popup = tk.Toplevel()
+        z_stage_popup.title('Z STAGE')
+        x, y = self.root.winfo_x(), self.root.winfo_y() # center popup
+        z_stage_popup.geometry("+%d+%d" % (x + 800, y + 400))
+        z_stage_popup.withdraw()
+        z_stage_frame = tk.LabelFrame(z_stage_popup, text='Z STAGE', bd=6)
+        z_stage_frame.grid(padx=10, pady=10)
+        # get position command:
+        def _get_position():
+            self.Z_stage_mm = (
+                self.scope.Z_stage.stage1.get_position_mm())
+            return None
+        # stop command:
+        def _stop():
+            self.scope.Z_stage.stop(mode='abrupt')
+            _get_position()
+            return None
+        # up:
+        def _move_up():
+            _get_position()
+            self.scope.Z_stage.move_mm(
+                limits_mm[1], relative=False, block=False)
+            return None
+        button_up = tk.Button(
+            z_stage_frame,
+            text="MOVE UP",
+            height=button_height,
+            width=button_width)
+        button_up.grid(row=0, padx=10, pady=10)
+        button_up.bind("<ButtonPress>", lambda event: _move_up())
+        button_up.bind("<ButtonRelease>", lambda event: _stop())
+        # move fast:
+        def _move_fast():
+            if move_fast.get():
+                self.scope.Z_stage.set_velocity_mmps(limits_mmps[1])
+            else:
+                self.scope.Z_stage.set_velocity_mmps(limits_mmps[0])
+            return None
+        move_fast = tk.BooleanVar()
+        move_fast_checkbox = tk.Checkbutton(
+            z_stage_frame,
+            text='Move fast!',
+            variable=move_fast,
+            command=_move_fast)
+        move_fast_checkbox.grid(row=1, padx=10, pady=10)
+        # down:
+        def _move_down():
+            _get_position()
+            self.scope.Z_stage.move_mm(
+                limits_mm[0], relative=False, block=False)
+            return None
+        button_down = tk.Button(
+            z_stage_frame,
+            text="MOVE DOWN",
+            height=button_height,
+            width=button_width)
+        button_down.grid(row=2, padx=10, pady=10)
+        button_down.bind("<ButtonPress>", lambda event: _move_down())
+        button_down.bind("<ButtonRelease>", lambda event: _stop())
+        # position:
+        run_update_position = tk.BooleanVar()
+        def _run_update_position():
+            if edge_limits_mm[0] <= self.Z_stage_mm <= edge_limits_mm[1]:
+                _get_position()
+            position_textbox.textbox.delete('1.0', '10.0')
+            position_textbox.textbox.insert(
+                '1.0', 'Z=%0.3f'%self.Z_stage_mm)
+            wait_ms = 33
+            if run_update_position.get():
+                self.root.after(wait_ms, _run_update_position)
+            return None
+        position_textbox = tkcw.Textbox(
+            z_stage_frame, label='position (mm)', height=1, width=20)
+        position_textbox.grid(row=3, padx=10, pady=10)
+        # equalize:
+        def _equalize():
+            self.scope.Z_stage.equalize()
+            return None
+        button_equalize = tk.Button(
+            z_stage_frame,
+            text="EQUALIZE",
+            command=_equalize,
+            height=button_height,
+            width=button_width)
+        button_equalize.grid(row=4, padx=10, pady=10)
+        # popup exit button:
+        def _exit_z_stage_popup():
+            _equalize()
+            run_update_position.set(0)
+            z_stage_popup.withdraw()
+            z_stage_popup.grab_release()
+            return None
+        exit_z_stage_popup_button = tk.Button(
+            z_stage_popup,
+            text="Exit",
+            command=_exit_z_stage_popup,
+            height=button_height,
+            width=button_width)
+        exit_z_stage_popup_button.grid(
+            row=4, column=0, padx=10, pady=10, sticky='n')
+        def _open_z_stage_popup():
+            _move_fast()
+            _get_position()
+            run_update_position.set(1)
+            _run_update_position()
+            z_stage_popup.deiconify()
+            z_stage_popup.grab_set() # force user to interact
+        # move:
+        button_move_sample = tk.Button(
+            frame,
+            text="Move sample up/down",
+            command=_open_z_stage_popup,
+            width=button_width,
+            height=button_height)
+        button_move_sample.grid(row=0, column=0, padx=10, pady=10)
+        move_tip = tix.Balloon(button_move_sample)
+        move_tip.bind_widget(
+            button_move_sample,
+            balloonmsg=(
+                "The 'Z STAGE' is a course vertical motion device for\n" +
+                "moving the sample over a potentially large range (some mm)\n" +
+                "to approximately set the focus at the primary objective\n" +
+                "(±10um).\n" +
+                "NOTE: THIS CAN CRUSH THE OBJECTIVE AND SAMPLE!"))
         return None
 
     def init_XY_stage(self):
