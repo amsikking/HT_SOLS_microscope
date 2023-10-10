@@ -20,17 +20,17 @@ class ObjectiveSelector:
             stages=(None, None, 'ZFM2020'),
             reverse=(False, False, False),
             verbose=very_verbose)
-        z0_um = round(z_drive.position_um[ch])
+        z_um = round(z_drive.position_um[ch])
         O1_to_BFP_um = { # absolute positions of BFP's from alignment
             'Nikon 40x0.95 air'    : 0,
             'Nikon 40x1.15 water'  :-137,
             'Nikon 40x1.30 oil'    :-12023}
         O1_options = tuple(O1_to_BFP_um.keys())
-        O1_BFP_um = tuple(O1_to_BFP_um.values())
+        O1_positions_um = tuple(O1_to_BFP_um.values())
         # check position:
         p0 = None
-        if z0_um in O1_BFP_um:
-            p0 = O1_BFP_um.index(z0_um)
+        if z_um in O1_positions_um:
+            p0 = O1_positions_um.index(z_um)
             if verbose:
                 print('%s: current position   = %s'%(name, O1_options[p0]))
         # init gui:
@@ -40,7 +40,7 @@ class ObjectiveSelector:
         def _move(rb_pos):
             if verbose:
                 print('%s: moving to position = %s'%(name, O1_options[rb_pos]))
-            z_drive.move_um(ch, O1_BFP_um[rb_pos], relative=False)
+            z_drive.move_um(ch, O1_positions_um[rb_pos], relative=False)
             if verbose:
                 print('%s: -> done.'%name)
             return None
