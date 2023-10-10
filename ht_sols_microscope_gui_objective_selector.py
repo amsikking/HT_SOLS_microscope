@@ -11,62 +11,61 @@ class ObjectiveSelector:
                  name='ObjectiveSelector',
                  verbose=True,
                  very_verbose=False):
-        self.name = name
-        self.verbose = verbose
-        self.root = tk.Tk()
-        self.root.title('HT SOLS Microscope GUI')
-        if self.verbose:
-            print('%s: initializing'%self.name)        
-        self.z_drive_ch = 2
-        self.z_controller = thorlabs_MCM3000.Controller(
+        if verbose:
+            print('%s: initializing'%name)
+        # init hardware:
+        ch = 2
+        z_drive = thorlabs_MCM3000.Controller(
             which_port=which_port,
             stages=(None, None, 'ZFM2020'),
             reverse=(False, False, False),
             verbose=very_verbose)
-        self.objectives = (
-            'Nikon 40x0.95 air', 'Nikon 40x1.15 water', 'Nikon 40x1.30 oil')
-        self.objective_BFP_um = ( # absolute position from alignment
-            0, -137, -12023)
-        start_z_um = self.z_controller.position_um[self.z_drive_ch]
-        frame = tk.LabelFrame(self.root, text='OBJECTIVE SELECTOR', bd=6)
-        frame.grid(padx=20, pady=20)
-        self.objective = tkcw.RadioButtons(
-            self.root,
-            label='options',
-            buttons=self.objectives,
-            function=self.function)
-        quit_button = tk.Button(
-            self.root, text="QUIT", command=self.quit, height=3, width=20)
-        quit_button.grid(row=1, column=0, padx=20, pady=20, sticky='n')
-        if self.verbose:
-            print('%s: -> done.'%self.name)
-        if round(start_z_um) in self.objective_BFP_um: # check position
-            start_position = self.objective_BFP_um.index(round(start_z_um))
-            self.objective.position.set(start_position)
-            if self.verbose:
-                print('%s: current position   = %s'%(
-                    self.name, self.objectives[start_position]))
-        self.root.mainloop()
-        self.root.destroy()
-
-    def function(self, rb_pos):
-        if self.verbose:
-            print('%s: moving to position = %s'%(
-            self.name, self.objectives[rb_pos]))
-        self.z_controller.move_um(
-            self.z_drive_ch, self.objective_BFP_um[rb_pos], relative=False)
-        if self.verbose:
-            print('%s: -> done.'%self.name)
-        return None
-
-    def quit(self):
-        if self.verbose:
-            print('%s: closing'%self.name)
-        self.z_controller.close()
-        self.root.quit()
-        if self.verbose:
-            print('%s: -> done.'%self.name)
-        return None
+        z0_um = round(z_drive.position_um[ch])
+        O1_to_BFP_um = { # absolute positions of BFP's from alignment
+            'Nikon 40x0.95 air'    : 0,
+            'Nikon 40x1.15 water'  :-137,
+            'Nikon 40x1.30 oil'    :-12023}
+        O1_options = tuple(O1_to_BFP_um.keys())
+        O1_BFP_um = tuple(O1_to_BFP_um.values())
+        # check position:
+        p0 = None
+        if z0_um in O1_BFP_um:
+            p0 = O1_BFP_um.index(z0_um)
+            if verbose:
+                print('%s: current position   = %s'%(name, O1_options[p0]))
+        # init gui:
+        root = tk.Tk()
+        root.title('Objective selector GUI')        
+        # objective selector:
+        def _move(rb_pos):
+            if verbose:
+                print('%s: moving to position = %s'%(name, O1_options[rb_pos]))
+            z_drive.move_um(ch, O1_BFP_um[rb_pos], relative=False)
+            if verbose:
+                print('%s: -> done.'%name)
+            return None
+        O1 = tkcw.RadioButtons(root,
+                               label='OBJECTIVE SELECTOR',
+                               buttons=O1_options,
+                               default_position=p0,
+                               function=_move)
+        # quit:
+        def _quit():
+            if verbose:
+                print('%s: closing'%name)
+            z_drive.close()
+            root.quit()
+            if verbose:
+                print('%s: -> done.'%name)
+            return None
+        button_quit = tk.Button(
+            root, text="QUIT", command=_quit, height=3, width=20)
+        button_quit.grid(row=1, column=0, padx=20, pady=20, sticky='n')
+        if verbose:
+            print('%s: -> done.'%name)
+        # run gui:
+        root.mainloop()
+        root.destroy()
 
 if __name__ == '__main__':
     objective_selector = ObjectiveSelector(
