@@ -23,6 +23,7 @@ try:
     # https://github.com/amsikking/coherent_OBIS_LSLX_laser_box
     import coherent_OBIS_LSLX_laser_box
     import thorlabs_MLJ_Z_stage # github.com/amsikking/thorlabs_MLJ_Z_stage
+    import thorlabs_MCM3000     # github.com/amsikking/thorlabs_MCM3000
     import shm_win_patch        # github.com/amsikking/shm_win_patch
     import concurrency_tools as ct              # github.com/AndrewGYork/tools
     from napari_in_subprocess import display    # github.com/AndrewGYork/tools
@@ -60,9 +61,12 @@ class Microscope:
             target=self._init_XY_stage).start()     #~0.4s
         slow_Z_stage_init = ct.ResultThread(
             target=self._init_Z_stage).start()      #~0.3s
+        slow_Z_drive_init = ct.ResultThread(
+            target=self._init_Z_drive).start()      #~0.07s        
         self._init_display()                        #~1.3s
         self._init_datapreview()                    #~0.8s
         self._init_ao(ao_rate)                      #~0.2s
+        slow_Z_drive_init.get_result()
         slow_Z_stage_init.get_result()
         slow_XY_stage_init.get_result()
         slow_focus_init.get_result()
@@ -175,6 +179,28 @@ class Microscope:
             verbose=False)
         if self.verbose: print("\n%s: -> Z stage open."%self.name)
         atexit.register(self.Z_stage.close)
+
+    def _init_Z_drive(self):
+        if self.verbose: print("\n%s: opening Z drive..."%self.name)
+        self.Z_drive = thorlabs_MCM3000.Controller(
+            which_port='COM21',
+            stages=(None, None, 'ZFM2020'),
+            reverse=(False, False, False),
+            verbose=False)
+        self.Z_drive_ch = 2
+        O1_to_BFP_um = { # absolute positions of BFP's from alignment
+            'Nikon 40x0.95 air'    : 0,
+            'Nikon 40x1.15 water'  :-137,
+            'Nikon 40x1.30 oil'    :-12023}
+        self.O1_options = tuple(O1_to_BFP_um.keys())
+        self.O1_positions_um = tuple(O1_to_BFP_um.values())
+        # check position is legal:
+        z_um = round(self.Z_drive.position_um[self.Z_drive_ch])
+        objective_1 = self.O1_options[self.O1_positions_um.index(z_um)]
+        if self.verbose:
+            print("\n%s: -> objective_1 = %s"%(self.name, objective_1))
+            print("\n%s: -> Z drive open."%self.name)
+        atexit.register(self.Z_drive.close)
 
     def _init_XY_stage(self):
         if self.verbose: print("\n%s: opening XY stage..."%self.name)        
@@ -306,6 +332,9 @@ class Microscope:
         data_path =     folder_name + '\data\\'     + filename
         metadata_path = folder_name + '\metadata\\' + filename
         preview_path =  folder_name + '\preview\\'  + filename
+        # check objective 1:
+        z_um = round(self.Z_drive.position_um[self.Z_drive_ch])
+        objective_1 = self.O1_options[self.O1_positions_um.index(z_um)]
         # save metadata:
         to_save = {
             'Date':datetime.strftime(datetime.now(),'%Y-%m-%d'),
@@ -333,6 +362,8 @@ class Microscope:
             'focus_piezo_z_um':self.focus_piezo_z_um,
             'XY_stage_position_mm':self.XY_stage_position_mm,
             'Z_stage_position_mm':self.Z_stage.stage1.position_mm,
+            'Z_drive_position_um':z_um,
+            'objective_1':objective_1,
             'preview_line_px':self.preview_line_px,
             'preview_crop_px':self.preview_crop_px,
             'MRR':MRR,
@@ -712,6 +743,7 @@ class Microscope:
         self.focus_piezo.close()
         self.XY_stage.close()
         self.Z_stage.close()
+        self.Z_drive.close()
         self.display.close()
         if self.verbose: print("%s: done closing."%self.name)
 
