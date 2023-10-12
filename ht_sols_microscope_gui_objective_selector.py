@@ -2,8 +2,9 @@
 import tkinter as tk
 
 # Our code, one .py file per module, copy files to your local directory:
-import tkinter_compound_widgets as tkcw
-import thorlabs_MCM3000
+import thorlabs_MCM3000                 # github.com/amsikking/thorlabs_MCM3000
+import ht_sols_microscope as ht_sols # github.com/amsikking/HT_SOLS_microscope
+import tkinter_compound_widgets as tkcw # github.com/amsikking/tkinter 
 
 class ObjectiveSelector:
     def __init__(self,
@@ -21,12 +22,8 @@ class ObjectiveSelector:
             reverse=(False, False, False),
             verbose=very_verbose)
         z_um = round(z_drive.position_um[ch])
-        O1_to_BFP_um = { # absolute positions of BFP's from alignment
-            'Nikon 40x0.95 air'    : 0,
-            'Nikon 40x1.15 water'  :-137,
-            'Nikon 40x1.30 oil'    :-12023}
-        O1_options = tuple(O1_to_BFP_um.keys())
-        O1_positions_um = tuple(O1_to_BFP_um.values())
+        O1_options = tuple(ht_sols.O1_to_BFP_um.keys())
+        O1_positions_um = tuple(ht_sols.O1_to_BFP_um.values())
         # check position:
         p0 = None
         if z_um in O1_positions_um:
