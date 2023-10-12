@@ -223,10 +223,9 @@ class GuiMicroscope:
                 "Search the part number to see the specification."))
         inner_frame = tk.LabelFrame(frame, text='fixed')
         inner_frame.grid(row=0, column=0, padx=10, pady=10)
-        dichroic_mirror_options = ( # copy paste from ht_sols_microscope
-            'ZT405/488/561/640rpc',)
+        dichroic_mirror_options = tuple(ht_sols.dichroic_mirror_options.keys())
         dichroic_mirror = tk.StringVar()
-        dichroic_mirror.set('ZT405/488/561/640rpc') # set default
+        dichroic_mirror.set(dichroic_mirror_options[0]) # set default
         option_menu = tk.OptionMenu(
             inner_frame,
             dichroic_mirror,
@@ -247,19 +246,9 @@ class GuiMicroscope:
                 "Search the part numbers to see the specifications."))
         inner_frame = tk.LabelFrame(frame, text='choice')
         inner_frame.grid(row=0, column=0, padx=10, pady=10)
-        emission_filter_options = ( # copy paste from ht_sols_microscope
-            'Shutter',
-            'Open',
-            'ET445/58M',
-            'ET525/50M',
-            'ET600/50M',
-            'ET706/95M',
-            'ZET405/488/561/640m',
-            '(unused)',
-            '(unused)',
-            '(unused)')
+        emission_filter_options = tuple(ht_sols.emission_filter_options.keys())
         self.emission_filter = tk.StringVar()
-        self.emission_filter.set('ZET405/488/561/640m') # set default
+        self.emission_filter.set(emission_filter_options[6]) # set default
         option_menu = tk.OptionMenu(
             inner_frame,
             self.emission_filter,
@@ -615,7 +604,7 @@ class GuiMicroscope:
         def _move_up():
             _get_position()
             self.scope.Z_stage.move_mm(
-                limits_mm[1], relative=False, block=False)
+                limits_mm[0], relative=False, block=False)
             return None
         button_up = tk.Button(
             z_stage_frame,
@@ -643,7 +632,7 @@ class GuiMicroscope:
         def _move_down():
             _get_position()
             self.scope.Z_stage.move_mm(
-                limits_mm[0], relative=False, block=False)
+                limits_mm[1], relative=False, block=False)
             return None
         button_down = tk.Button(
             z_stage_frame,
