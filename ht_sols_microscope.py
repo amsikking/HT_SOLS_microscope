@@ -29,14 +29,28 @@ try:
     import concurrency_tools as ct              # github.com/AndrewGYork/tools
     from napari_in_subprocess import display    # github.com/AndrewGYork/tools
 except Exception as e:
-    print('sols_microscope.py -> One or more imports failed')
-    print('sols_microscope.py -> error =',e)
+    print('ht_sols_microscope.py -> One or more imports failed')
+    print('ht_sols_microscope.py -> error =',e)
 
-# SOLS optical configuration (edit as needed):
+# HT SOLS optical configuration (edit as needed):
 M1 = 200 / 5; Mscan = 100 / 100; M2 = 10 / 300; M3 = 200 / 9
 MRR = M1 * Mscan * M2; Mtot = MRR * M3;
 camera_px_um = 6.5; sample_px_um = camera_px_um / Mtot
 tilt = np.deg2rad(50)
+dichroic_mirror_options = {'ZT405/488/561/640rpc'   :0}
+emission_filter_options = {'Shutter'                :0,
+                           'Open'                   :1,
+                           'ET445/58M'              :2,
+                           'ET525/50M'              :3,
+                           'ET600/50M'              :4,
+                           'ET706/95M'              :5,
+                           'ZET405/488/561/640m'    :6,
+                           '(unused)'               :7,
+                           '(unused)'               :8,
+                           '(unused)'               :9}
+O1_to_BFP_um = {'Nikon 40x0.95 air'    : 0, # absolute positions from alignment
+                'Nikon 40x1.15 water'  :-137,
+                'Nikon 40x1.30 oil'    :-12023}
 
 class Microscope:
     def __init__(self,
@@ -44,10 +58,12 @@ class Microscope:
                  ao_rate,               # slow ~1e3, medium ~1e4, fast ~1e5
                  name='HT-SOLS v1.1',
                  verbose=True):
+        self.max_allocated_bytes = max_allocated_bytes
         self.name = name
         self.verbose = verbose
         if self.verbose: print("%s: opening..."%self.name)
         self.unfinished_tasks = queue.Queue()
+        # init hardware/software:
         slow_fw_init = ct.ResultThread(
             target=self._init_filter_wheel).start() #~5.3s
         slow_camera_init = ct.ResultThread(
@@ -78,10 +94,10 @@ class Microscope:
         slow_lasers_init.get_result()
         slow_camera_init.get_result()
         slow_fw_init.get_result()
-        self.max_allocated_bytes = max_allocated_bytes
+        # configure:
         self.illumination_sources = ( # configure as needed
             'LED', '405', '488', '561', '640', '405_on_during_rolling')
-        self.dichroic_mirror = 'ZT405/488/561/640rpc'
+        self.dichroic_mirror = tuple(dichroic_mirror_options.keys())[0]
         self.max_bytes_per_buffer = (2**31) # legal tiff
         self.max_data_buffers = 4 # camera, preview, display, filesave
         self.max_preview_buffers = self.max_data_buffers
@@ -123,38 +139,6 @@ class Microscope:
         if self.verbose: print("\n%s: -> ao card open."%self.name)
         atexit.register(self.ao.close)
 
-    def _init_filter_wheel(self):
-        if self.verbose: print("\n%s: opening filter wheel..."%self.name)
-        self.filter_wheel = sutter_Lambda_10_3.Controller(
-            which_port='COM10', verbose=False)
-        if self.verbose: print("\n%s: -> filter wheel open."%self.name)
-        self.emission_filter_options = {
-            'Shutter'               :0,
-            'Open'                  :1,
-            'ET445/58M'             :2,
-            'ET525/50M'             :3,
-            'ET600/50M'             :4,
-            'ET706/95M'             :5,
-            'ZET405/488/561/640m'   :6,
-            '(unused)'              :7,
-            '(unused)'              :8,
-            '(unused)'              :9}
-        atexit.register(self.filter_wheel.close)
-
-    def _init_camera(self):
-        if self.verbose: print("\n%s: opening camera..."%self.name)
-        self.camera = ct.ObjectInSubprocess(
-            pco_edge42_cl.Camera, verbose=False, close_method_name='close')
-        if self.verbose: print("\n%s: -> camera open."%self.name)
-
-    def _init_lasers(self):
-        if self.verbose: print("\n%s: opening lasers..."%self.name)
-        self.lasers = coherent_OBIS_LSLX_laser_box.Controller(
-            which_port='COM22', control_mode='analog', verbose=False)
-        for laser in self.lasers.lasers:
-            self.lasers.set_enable('ON', laser)
-        if self.verbose: print("\n%s: -> lasers open."%self.name)
-
     def _init_snoutfocus(self):
         if self.verbose: print("\n%s: opening snoutfocus piezo..."%self.name)
         self.snoutfocus_piezo = thorlabs_MDT694B.Controller(
@@ -166,6 +150,27 @@ class Microscope:
         if self.verbose: print("\n%s: -> snoutfocus shutter open."%self.name)
         atexit.register(self.snoutfocus_piezo.close)
         atexit.register(self.snoutfocus_shutter.close)
+
+    def _init_lasers(self):
+        if self.verbose: print("\n%s: opening lasers..."%self.name)
+        self.lasers = coherent_OBIS_LSLX_laser_box.Controller(
+            which_port='COM22', control_mode='analog', verbose=False)
+        for laser in self.lasers.lasers:
+            self.lasers.set_enable('ON', laser)
+        if self.verbose: print("\n%s: -> lasers open."%self.name)
+
+    def _init_filter_wheel(self):
+        if self.verbose: print("\n%s: opening filter wheel..."%self.name)
+        self.filter_wheel = sutter_Lambda_10_3.Controller(
+            which_port='COM10', verbose=False)
+        if self.verbose: print("\n%s: -> filter wheel open."%self.name)
+        atexit.register(self.filter_wheel.close)
+
+    def _init_camera(self):
+        if self.verbose: print("\n%s: opening camera..."%self.name)
+        self.camera = ct.ObjectInSubprocess(
+            pco_edge42_cl.Camera, verbose=False, close_method_name='close')
+        if self.verbose: print("\n%s: -> camera open."%self.name)
 
     def _init_focus_piezo(self):
         if self.verbose: print("\n%s: opening focus piezo..."%self.name)
@@ -199,10 +204,6 @@ class Microscope:
             reverse=(False, False, False),
             verbose=False)
         self.Z_drive_position_um = round(self.Z_drive.position_um[2]) # ch = 2
-        O1_to_BFP_um = { # absolute positions of BFP's from alignment
-            'Nikon 40x0.95 air'    : 0,
-            'Nikon 40x1.15 water'  :-137,
-            'Nikon 40x1.30 oil'    :-12023}
         O1_options = tuple(O1_to_BFP_um.keys())
         O1_positions_um = tuple(O1_to_BFP_um.values())
         # check position is legal:
@@ -334,10 +335,10 @@ class Microscope:
         if folder_name is None:
             folder_index = 0
             dt = datetime.strftime(datetime.now(),'%Y-%m-%d_%H-%M-%S')
-            folder_name = dt + '_%03i_sols'%folder_index
+            folder_name = dt + '_%03i_ht_sols'%folder_index
             while os.path.exists(folder_name): # check overwriting
                 folder_index +=1
-                folder_name = dt + '_%03i_sols'%folder_index
+                folder_name = dt + '_%03i_ht_sols'%folder_index
             make_folders(folder_name)
         else:
             if not os.path.exists(folder_name): make_folders(folder_name)
@@ -475,7 +476,7 @@ class Microscope:
                     target=self.XY_stage.get_position_mm).start()
             if emission_filter is not None:
                 self.filter_wheel.move(
-                    self.emission_filter_options[emission_filter], block=False)
+                    emission_filter_options[emission_filter], block=False)
             if focus_piezo_z_um is not None:
                 assert focus_piezo_z_um[1] in ('relative', 'absolute')
                 z = focus_piezo_z_um[0]
@@ -546,15 +547,14 @@ class Microscope:
                 return
             self._settings_applied = False # In case the thread crashes
             # Record the settings we'll have to reset:
-            old_fw_pos = self.emission_filter_options[self.emission_filter]
+            old_fw_pos = emission_filter_options[self.emission_filter]
             old_images = self.camera.num_images
             old_exp_us = self.camera.exposure_us
             old_roi_px = self.camera.roi_px
             old_timestamp = self.camera.timestamp_mode
             old_voltages = self.voltages
             # Get microscope settings ready to take our measurement:
-            self.filter_wheel.move(
-                self.emission_filter_options['Open'], block=False)
+            self.filter_wheel.move(emission_filter_options['Open'], block=False)
             self.snoutfocus_piezo.set_voltage(0, block=False) # fw slower
             piezo_limit_v = 75 # 20 um for current piezo
             piezo_step_v = 1 # 267 nm steps
@@ -630,9 +630,9 @@ class Microscope:
                     time.sleep(2)
             custody.switch_from(self.camera, to=None)
             if filename is not None:
-                if not os.path.exists('sols_snoutfocus'):
-                    os.makedirs('sols_snoutfocus')
-                path = 'sols_snoutfocus\\' + filename
+                if not os.path.exists('ht_sols_snoutfocus'):
+                    os.makedirs('ht_sols_snoutfocus')
+                path = 'ht_sols_snoutfocus\\' + filename
                 if self.verbose:
                     print("%s: saving '%s'"%(self.name, path))
                 imwrite(path, data_buffer[:, np.newaxis, :, :], imagej=True)
@@ -782,7 +782,7 @@ class _CustomNapariDisplay:
     def close(self):
         self.viewer.close()
 
-# SOLS definitions and API:
+# HT SOLS definitions and API:
 
 # The chosen API (exposed via '.apply_settings()') forces the user to
 # select scan settings (via 'voxel_aspect_ratio' and 'scan_range_um') that are
@@ -959,9 +959,9 @@ class DataZ:
         return max_z_gradient_um
 
 class DataRoi:
-    # Can be used for cropping empty pixels from raw data. The SOLS microscope
-    # produces vast amounts of data very quickly, often with many empty
-    # pixels (so discarding them can help). This simple routine assumes a
+    # Can be used for cropping empty pixels from raw data. The HT-SOLS
+    # microscope produces vast amounts of data very quickly, often with many
+    # empty pixels (so discarding them can help). This simple routine assumes a
     # central sample/roi and then attemps to reject the surrounding empty pixels
     # accroding to the 'signal_to_bg_ratio' (threshold method).
     def get(
@@ -1097,7 +1097,7 @@ if __name__ == '__main__':
         ).join()
 
     # Run snoutfocus and acquire:
-    folder_label = 'sols_test_data'
+    folder_label = 'ht_sols_test_data'
     dt = datetime.strftime(datetime.now(),'%Y-%m-%d_%H-%M-%S_000_')
     folder_name = dt + folder_label
     scope.snoutfocus(filename='snoutfocus.tif', settle_vibrations=True)
