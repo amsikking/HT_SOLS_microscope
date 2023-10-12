@@ -198,18 +198,19 @@ class Microscope:
             stages=(None, None, 'ZFM2020'),
             reverse=(False, False, False),
             verbose=False)
-        self.Z_drive_ch = 2
+        self.Z_drive_position_um = round(self.Z_drive.position_um[2]) # ch = 2
         O1_to_BFP_um = { # absolute positions of BFP's from alignment
             'Nikon 40x0.95 air'    : 0,
             'Nikon 40x1.15 water'  :-137,
             'Nikon 40x1.30 oil'    :-12023}
-        self.O1_options = tuple(O1_to_BFP_um.keys())
-        self.O1_positions_um = tuple(O1_to_BFP_um.values())
+        O1_options = tuple(O1_to_BFP_um.keys())
+        O1_positions_um = tuple(O1_to_BFP_um.values())
         # check position is legal:
-        z_um = round(self.Z_drive.position_um[self.Z_drive_ch])
-        objective_1 = self.O1_options[self.O1_positions_um.index(z_um)]
+        self.objective_1_position = O1_positions_um.index(
+            self.Z_drive_position_um)        
+        self.objective_1 = O1_options[self.objective_1_position]
         if self.verbose:
-            print("\n%s: -> objective_1 = %s"%(self.name, objective_1))
+            print("\n%s: -> objective_1 = %s"%(self.name, self.objective_1))
             print("\n%s: -> Z drive open."%self.name)
         atexit.register(self.Z_drive.close)
 
@@ -343,9 +344,6 @@ class Microscope:
         data_path =     folder_name + '\data\\'     + filename
         metadata_path = folder_name + '\metadata\\' + filename
         preview_path =  folder_name + '\preview\\'  + filename
-        # check objective 1:
-        z_um = round(self.Z_drive.position_um[self.Z_drive_ch])
-        objective_1 = self.O1_options[self.O1_positions_um.index(z_um)]
         # save metadata:
         to_save = {
             'Date':datetime.strftime(datetime.now(),'%Y-%m-%d'),
@@ -373,8 +371,8 @@ class Microscope:
             'focus_piezo_z_um':self.focus_piezo_z_um,
             'XY_stage_position_mm':self.XY_stage_position_mm,
             'Z_stage_position_mm':self.Z_stage.stage1.position_mm,
-            'Z_drive_position_um':z_um,
-            'objective_1':objective_1,
+            'Z_drive_position_um':self.Z_drive_position_um,
+            'objective_1':self.objective_1,
             'preview_line_px':self.preview_line_px,
             'preview_crop_px':self.preview_crop_px,
             'MRR':MRR,
