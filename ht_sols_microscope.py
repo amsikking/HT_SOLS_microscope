@@ -24,6 +24,7 @@ try:
     import coherent_OBIS_LSLX_laser_box
     import thorlabs_MLJ_Z_stage # github.com/amsikking/thorlabs_MLJ_Z_stage
     import thorlabs_MCM3000     # github.com/amsikking/thorlabs_MCM3000
+    import prior_PureFocus850   # github.com/amsikking/prior_PureFocus850
     import shm_win_patch        # github.com/amsikking/shm_win_patch
     import concurrency_tools as ct              # github.com/AndrewGYork/tools
     from napari_in_subprocess import display    # github.com/AndrewGYork/tools
@@ -62,10 +63,13 @@ class Microscope:
         slow_Z_stage_init = ct.ResultThread(
             target=self._init_Z_stage).start()      #~0.3s
         slow_Z_drive_init = ct.ResultThread(
-            target=self._init_Z_drive).start()      #~0.07s        
+            target=self._init_Z_drive).start()      #~0.07s
+        slow_autofocus_init = ct.ResultThread(
+            target=self._init_autofocus).start()    #~0.015s
         self._init_display()                        #~1.3s
         self._init_datapreview()                    #~0.8s
         self._init_ao(ao_rate)                      #~0.2s
+        slow_autofocus_init.get_result()
         slow_Z_drive_init.get_result()
         slow_Z_stage_init.get_result()
         slow_XY_stage_init.get_result()
@@ -166,9 +170,16 @@ class Microscope:
     def _init_focus_piezo(self):
         if self.verbose: print("\n%s: opening focus piezo..."%self.name)
         self.focus_piezo = pi_E_709_1C1L.Controller(
-            which_port='COM20', z_min_um=0, z_max_um=800, verbose=False)
+            which_port='COM27', z_min_um=0, z_max_um=800, verbose=False)
         if self.verbose: print("\n%s: -> focus piezo open."%self.name)
         atexit.register(self.focus_piezo.close)
+
+    def _init_autofocus(self):
+        if self.verbose: print("\n%s: opening autofocus..."%self.name)
+        self.autofocus = prior_PureFocus850.Controller(
+            which_port='COM8', verbose=False)
+        if self.verbose: print("\n%s: -> autofocus open."%self.name)
+        atexit.register(self.autofocus.close)
 
     def _init_Z_stage(self):
         if self.verbose: print("\n%s: opening Z stage..."%self.name)
@@ -205,7 +216,7 @@ class Microscope:
     def _init_XY_stage(self):
         if self.verbose: print("\n%s: opening XY stage..."%self.name)        
         self.XY_stage = pi_C_867_2U2.Controller(
-            which_port='COM17', verbose=False)
+            which_port='COM19', verbose=False)
         if self.verbose: print("\n%s: -> XY stage open."%self.name)
         atexit.register(self.XY_stage.close)
 
@@ -741,6 +752,7 @@ class Microscope:
         self.snoutfocus_piezo.close()
         self.snoutfocus_shutter.close()
         self.focus_piezo.close()
+        self.autofocus.close()
         self.XY_stage.close()
         self.Z_stage.close()
         self.Z_drive.close()
