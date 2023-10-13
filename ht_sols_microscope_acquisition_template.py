@@ -25,6 +25,7 @@ if __name__ == '__main__': # required block for sols_microscope
         voxel_aspect_ratio=1,                   # 1  -> 10   (typical range)
         scan_range_um=250,                      # 10 -> 250  (typical range)
         volumes_per_buffer=1,                   # usually 1, can be more...
+        autofocus_enabled=False,                # set 'True' for autofocus
         focus_piezo_z_um=(0,'relative'),        # = don't move
         XY_stage_position_mm=(0,0,'relative'),  # = don't move
         ).join()
