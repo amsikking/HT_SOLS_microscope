@@ -36,6 +36,7 @@ class GuiMicroscope:
         self.init_galvo()
         self.init_focus_piezo()
         self.init_Z_stage()
+        self.init_autofocus()
         self.init_XY_stage()
         # load microscope GUI's and quit:
         self.init_grid_navigator()  # navigates an XY grid of points
@@ -708,6 +709,42 @@ class GuiMicroscope:
                 "to approximately set the focus at the primary objective\n" +
                 "(±10um).\n" +
                 "NOTE: THIS CAN CRUSH THE OBJECTIVE AND SAMPLE!"))
+        return None
+
+    def init_autofocus(self):
+        frame = tk.LabelFrame(self.root, text='AUTOFOCUS', bd=6)
+        frame.grid(row=2, column=3, padx=10, pady=10, sticky='n')
+        frame_tip = tix.Balloon(frame)
+        frame_tip.bind_widget(
+            frame,
+            balloonmsg=(
+                "The 'AUTOFOCUS' will attempt to continously maintain\n" +
+                "a set distance between the primary objective and the\n" +
+                "sample. This distance (focus) can be adjusted by\n" +
+                "turning the 'knob' on the 'PRIOR PureFocus850 controller'\n" +
+                "NOTE: this typically only works if the sample is already\n " +
+                "'very close' to being in focus:\n " +
+                "-> It is NOT intented to find the sample or find focus.\n " +
+                "-> Do NOT press any of the buttons on the controller.\n "))
+        def _autofocus():
+            if autofocus_enabled.get():
+                self.scope.apply_settings(autofocus_enabled=True)
+            else:
+                self.scope.apply_settings(autofocus_enabled=False).join()
+                # update gui:
+                self.focus_piezo_z_um.update_and_validate(
+                    int(round(self.scope.focus_piezo_z_um)))
+            return None
+        autofocus_enabled = tk.BooleanVar()
+        autofocus_button = tk.Checkbutton(
+            frame,
+            text="Enable/Disable",
+            variable=autofocus_enabled,
+            command=_autofocus,
+            indicatoron=0,
+            width=25,
+            height=2)
+        autofocus_button.grid(row=0, column=0, padx=10, pady=10)
         return None
 
     def init_XY_stage(self):
