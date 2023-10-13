@@ -382,6 +382,9 @@ class Microscope:
             'slices_per_volume':self.slices_per_volume,
             'scan_range_um': self.scan_range_um,
             'volumes_per_buffer':self.volumes_per_buffer,
+            'autofocus_enabled':self.autofocus_enabled,
+            'autofocus_sample_flag':self.autofocus_sample_flag,
+            'autofocus_focus_flag':self.autofocus_focus_flag,
             'focus_piezo_z_um':self.focus_piezo_z_um,
             'XY_stage_position_mm':self.XY_stage_position_mm,
             'Z_stage_position_mm':self.Z_stage.stage1.position_mm,
@@ -492,7 +495,22 @@ class Microscope:
             if emission_filter is not None:
                 self.filter_wheel.move(
                     emission_filter_options[emission_filter], block=False)
+            if autofocus_enabled is not None:
+                assert isinstance(autofocus_enabled, bool)
+                if autofocus_enabled:
+                    assert self.autofocus.get_sample_flag() # sample detected?
+                    self.autofocus.set_piezo_voltage( # apply ~zero motion volts
+                        self.focus_piezo.get_voltage_for_move_um(0))
+                    self.focus_piezo.set_analog_control_enable(True)
+                    self.autofocus.set_servo_enable(True)
+                else:
+                    self.autofocus.set_servo_enable(False)
+                    self.focus_piezo.set_analog_control_enable(False)
+                    self.autofocus_sample_flag = None
+                    self.autofocus_focus_flag  = None
             if focus_piezo_z_um is not None:
+                assert not self.autofocus_enabled, (
+                    'cannot move focus piezo with autofocus enabled')
                 assert focus_piezo_z_um[1] in ('relative', 'absolute')
                 z = focus_piezo_z_um[0]
                 if focus_piezo_z_um[1] == 'relative':
@@ -672,6 +690,14 @@ class Microscope:
                 print("%s: (all arguments must be specified at least once)")
                 custody.switch_from(self.camera, to=None)
                 return
+            if self.autofocus_enabled: # update attributes:
+                self.focus_piezo_z_um = self.focus_piezo.get_position(
+                    verbose=False)
+                self.autofocus_sample_flag = self.autofocus.get_sample_flag()
+                self.autofocus_focus_flag  = self.autofocus.get_focus_flag()
+                if not self.autofocus_focus_flag:
+                    print("\n%s: ***WARNING*** -> autofocus_focus_flag=" +
+                          "FALSE"%self.name)
             # must update XY stage position attributes in case joystick was used
             # no thread (blocking) so metatdata in _prepare_to_save is current
             self.XY_stage_position_mm = self.XY_stage.get_position_mm()
