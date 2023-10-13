@@ -22,8 +22,8 @@ class ObjectiveSelector:
             reverse=(False, False, False),
             verbose=very_verbose)
         z_um = round(z_drive.position_um[ch])
-        O1_options = tuple(ht_sols.O1_to_BFP_um.keys())
-        O1_positions_um = tuple(ht_sols.O1_to_BFP_um.values())
+        O1_options = ht_sols.objective1_options['name']
+        O1_positions_um = ht_sols.objective1_options['BFP_um']
         # check position:
         p0 = None
         if z_um in O1_positions_um:
