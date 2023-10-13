@@ -64,6 +64,7 @@ class GuiMicroscope:
                 voxel_aspect_ratio   = self.voxel_aspect_ratio.value.get(),
                 scan_range_um        = self.scan_range_um.value.get(),
                 volumes_per_buffer   = self.volumes_per_buffer.value.get(),
+                autofocus_enabled    = False,
                 focus_piezo_z_um     = (0, 'relative'),
                 XY_stage_position_mm = (0, 0, 'relative')).join() # finish
             # get XYZ direct from hardware and update gui to aviod motion:
