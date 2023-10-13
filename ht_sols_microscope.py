@@ -48,9 +48,13 @@ emission_filter_options = {'Shutter'                :0,
                            '(unused)'               :7,
                            '(unused)'               :8,
                            '(unused)'               :9}
-O1_to_BFP_um = {'Nikon 40x0.95 air'    : 0, # absolute positions from alignment
-                'Nikon 40x1.15 water'  :-137,
-                'Nikon 40x1.30 oil'    :-12023}
+objective1_options = {'name'  :('Nikon 40x0.95 air',
+                                'Nikon 40x1.15 water',
+                                'Nikon 40x1.30 oil'),
+                      # absolute position on 'Z_drive' from alignment:
+                      'BFP_um':(0, -137, -12023),
+                      # min working distance spec:
+                      'WD_um' :(170, 590, 240)}
 
 class Microscope:
     def __init__(self,
@@ -94,6 +98,16 @@ class Microscope:
         slow_lasers_init.get_result()
         slow_camera_init.get_result()
         slow_fw_init.get_result()
+        # configure autofocus: (Z_drive, focus_piezo and autofocus initialized)
+        self.autofocus.set_current_objective(self.objective1 + 1)
+        z_range_um = min(objective1_options['WD_um']) # a reasonable choice
+        self.autofocus.set_piezo_range_um(z_range_um)
+        self.autofocus.set_digipot_mode('Offset') # set for user convenience
+        self.focus_piezo.set_analog_control_limits( # 0-10V is 'z_range_um'
+            v_min=0,
+            v_max=10,
+            z_min_ai=0,
+            z_max_ai=self.autofocus.piezo_range_um)
         # set defaults:
         self.dichroic_mirror = tuple(dichroic_mirror_options.keys())[0]
         self.timestamp_mode = "binary+ASCII"
@@ -205,14 +219,12 @@ class Microscope:
             reverse=(False, False, False),
             verbose=False)
         self.Z_drive_position_um = round(self.Z_drive.position_um[2]) # ch = 2
-        O1_options = tuple(O1_to_BFP_um.keys())
-        O1_positions_um = tuple(O1_to_BFP_um.values())
-        # check position is legal:
-        self.objective_1_position = O1_positions_um.index(
-            self.Z_drive_position_um)        
-        self.objective_1 = O1_options[self.objective_1_position]
+        # check z position is legal and assign objective1:
+        self.objective1 = objective1_options['BFP_um'].index(
+            self.Z_drive_position_um)
         if self.verbose:
-            print("\n%s: -> objective_1 = %s"%(self.name, self.objective_1))
+            print("\n%s: -> objective1 = %s"%(
+                self.name, objective1_options['name'][self.objective1]))
             print("\n%s: -> Z drive open."%self.name)
         atexit.register(self.Z_drive.close)
 
@@ -374,7 +386,8 @@ class Microscope:
             'XY_stage_position_mm':self.XY_stage_position_mm,
             'Z_stage_position_mm':self.Z_stage.stage1.position_mm,
             'Z_drive_position_um':self.Z_drive_position_um,
-            'objective_1':self.objective_1,
+            'objective1_name':objective1_options['name'][self.objective1],
+            'objective1_WD_um':objective1_options['WD_um'][self.objective1],
             'preview_line_px':self.preview_line_px,
             'preview_crop_px':self.preview_crop_px,
             'MRR':MRR,
@@ -427,6 +440,7 @@ class Microscope:
         voxel_aspect_ratio=None,    # Int
         scan_range_um=None,         # Int or float
         volumes_per_buffer=None,    # Int
+        autofocus_enabled=None,     # Bool
         focus_piezo_z_um=None,      # (Float, "relative" or "absolute")
         XY_stage_position_mm=None,  # (Float, Float, "relative" or "absolute")
         max_bytes_per_buffer=None,  # Int
@@ -1093,6 +1107,7 @@ if __name__ == '__main__':
         voxel_aspect_ratio=2,
         scan_range_um=50,
         volumes_per_buffer=1,
+        autofocus_enabled=False,
         focus_piezo_z_um=(0,'relative'),
         XY_stage_position_mm=(0,0,'relative'),
         ).join()
