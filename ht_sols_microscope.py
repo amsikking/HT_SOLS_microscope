@@ -697,8 +697,8 @@ class Microscope:
                 self.autofocus_sample_flag = self.autofocus.get_sample_flag()
                 self.autofocus_focus_flag  = self.autofocus.get_focus_flag()
                 if not self.autofocus_focus_flag:
-                    print("\n%s: ***WARNING*** -> autofocus_focus_flag=" +
-                          "FALSE"%self.name)
+                    print("\n%s: ***WARNING*** -> "%self.name +
+                          "autofocus_focus_flag=FALSE")
             # must update XY stage position attributes in case joystick was used
             # no thread (blocking) so metatdata in _prepare_to_save is current
             self.XY_stage_position_mm = self.XY_stage.get_position_mm()
