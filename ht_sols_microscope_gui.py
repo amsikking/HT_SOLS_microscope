@@ -34,8 +34,8 @@ class GuiMicroscope:
         self.init_filter_wheel()
         self.init_camera()
         self.init_galvo()
-        self.init_focus_piezo()
         self.init_Z_stage()
+        self.init_focus_piezo()
         self.init_autofocus()
         self.init_XY_stage()
         # load microscope GUI's and quit:
@@ -129,7 +129,7 @@ class GuiMicroscope:
 
     def init_laser_box(self):
         frame = tk.LabelFrame(self.root, text='LASER BOX', bd=6)
-        frame.grid(row=2, column=0, padx=10, pady=10, sticky='n')
+        frame.grid(row=2, column=0, rowspan=4, padx=10, pady=10, sticky='n')
         frame_tip = tix.Balloon(frame)
         frame_tip.bind_widget(
             frame,
@@ -215,7 +215,7 @@ class GuiMicroscope:
 
     def init_dichroic_mirror(self):
         frame = tk.LabelFrame(self.root, text='DICHROIC MIRROR', bd=6)
-        frame.grid(row=3, column=0, padx=10, pady=10, sticky='n')
+        frame.grid(row=6, column=0, padx=10, pady=10, sticky='n')
         frame_tip = tix.Balloon(frame)
         frame_tip.bind_widget(
             frame,
@@ -238,7 +238,7 @@ class GuiMicroscope:
 
     def init_filter_wheel(self):
         frame = tk.LabelFrame(self.root, text='FILTER WHEEL', bd=6)
-        frame.grid(row=4, column=0, padx=10, pady=10, sticky='n')
+        frame.grid(row=7, column=0, padx=10, pady=10, sticky='n')
         frame_tip = tix.Balloon(frame)
         frame_tip.bind_widget(
             frame,
@@ -354,7 +354,7 @@ class GuiMicroscope:
 
     def init_galvo(self):
         frame = tk.LabelFrame(self.root, text='GALVO', bd=6)
-        frame.grid(row=3, column=1, rowspan=2, padx=10, pady=10, sticky='n')
+        frame.grid(row=6, column=1, rowspan=2, padx=10, pady=10, sticky='n')
         slider_length = 365 # match to camera
         button_width, button_height = 10, 2
         # scan slider:
@@ -486,100 +486,9 @@ class GuiMicroscope:
         self.last_acquire_task = self.scope.acquire()
         return None
 
-    def init_focus_piezo(self):
-        frame = tk.LabelFrame(self.root, text='FOCUS PIEZO', bd=6)
-        frame.grid(row=1, column=2, rowspan=2, padx=10, pady=10, sticky='n')
-        frame_tip = tix.Balloon(frame)
-        frame_tip.bind_widget(
-            frame,
-            balloonmsg=(
-                "The 'FOCUS PIEZO' is a (fast) fine focus device for \n" +
-                "precisley adjusting the focus of the primary objective \n" +
-                "over a short range."))
-        min_um, max_um = 0, 600
-        small_move_um, large_move_um = 1, 5
-        center_um = int(round((max_um - min_um) / 2))
-        # slider:
-        self.focus_piezo_z_um = tkcw.CheckboxSliderSpinbox(
-            frame,
-            label='position (um)',
-            orient='vertical',
-            checkbox_enabled=False,
-            slider_fast_update=True,
-            slider_length=460, # match to camera
-            tickinterval=10,
-            min_value=min_um,
-            max_value=max_um,
-            rowspan=5,
-            width=5)
-        def _move():
-            self.scope.apply_settings(
-                focus_piezo_z_um=(self.focus_piezo_z_um.value.get(),
-                                  'absolute'))
-            if self.running_scout_mode.get():
-                self._snap_and_display()
-            return None
-        self.focus_piezo_z_um.value.trace_add(
-            'write',
-            lambda var, index, mode: _move())
-        def _update_position(how):
-            # check current position:
-            z_um = self.focus_piezo_z_um.value.get()
-            # check which direction:
-            if how == 'large_up':     z_um -= large_move_um
-            if how == 'small_up':     z_um -= small_move_um
-            if how == 'center':       z_um  = center_um
-            if how == 'small_down':   z_um += small_move_um
-            if how == 'large_down':   z_um += large_move_um
-            # update:
-            self.focus_piezo_z_um.update_and_validate(z_um)
-            return None
-        button_width, button_height = 10, 2
-        # large up button:
-        button_large_move_up = tk.Button(
-            frame,
-            text="up %ium"%large_move_um,
-            command=lambda d='large_up': _update_position(d),
-            width=button_width,
-            height=button_height)
-        button_large_move_up.grid(row=0, column=1, padx=10, pady=10)
-        # small up button:
-        button_small_move_up = tk.Button(
-            frame,
-            text="up %ium"%small_move_um,
-            command=lambda d='small_up': _update_position(d),
-            width=button_width,
-            height=button_height)
-        button_small_move_up.grid(row=1, column=1, sticky='s')
-        # center button:
-        button_center_move = tk.Button(
-            frame,
-            text="center",
-            command=lambda d='center': _update_position(d),
-            width=button_width,
-            height=button_height)
-        button_center_move.grid(row=2, column=1, padx=5, pady=5)
-        # small down button:
-        button_small_move_down = tk.Button(
-            frame,
-            text="down %ium"%small_move_um,
-            command=lambda d='small_down': _update_position(d),
-            width=button_width,
-            height=button_height)
-        button_small_move_down.grid(row=3, column=1, sticky='n')
-        # large down button:
-        button_large_move_down = tk.Button(
-            frame,
-            text="down %ium"%large_move_um,
-            command=lambda d='large_down': _update_position(d),
-            width=button_width,
-            height=button_height)
-        button_large_move_down.grid(row=4, column=1, padx=10, pady=10)
-        return None
-
     def init_Z_stage(self):
-        frame = tk.LabelFrame(self.root, text='Z STAGE', bd=6)
-        frame.grid(row=1, column=3, padx=10, pady=10, sticky='n')
+        self.Z_stage_frame = tk.LabelFrame(self.root, text='Z STAGE', bd=6)
+        self.Z_stage_frame.grid(row=1, column=2, padx=10, pady=10, sticky='n')
         button_width, button_height = 25, 2
         limits_mm = (0, 20)     # range (adjust as needed)
         limits_mmps = (0.2, 1)  # velocity (adjust as needed)
@@ -694,7 +603,7 @@ class GuiMicroscope:
             z_stage_popup.grab_set() # force user to interact
         # move:
         button_move_sample = tk.Button(
-            frame,
+            self.Z_stage_frame,
             text="Move sample up/down",
             command=_open_z_stage_popup,
             width=button_width,
@@ -711,9 +620,102 @@ class GuiMicroscope:
                 "NOTE: THIS CAN CRUSH THE OBJECTIVE AND SAMPLE!"))
         return None
 
+    def init_focus_piezo(self):
+        self.focus_piezo_frame = tk.LabelFrame(
+            self.root, text='FOCUS PIEZO', bd=6)
+        self.focus_piezo_frame.grid(
+            row=2, column=2, rowspan=2, padx=10, pady=10, sticky='n')
+        frame_tip = tix.Balloon(self.focus_piezo_frame)
+        frame_tip.bind_widget(
+            self.focus_piezo_frame,
+            balloonmsg=(
+                "The 'FOCUS PIEZO' is a (fast) fine focus device for \n" +
+                "precisley adjusting the focus of the primary objective \n" +
+                "over a short range."))
+        min_um, max_um = 0, min(ht_sols.objective1_options['WD_um'])
+        small_move_um, large_move_um = 1, 5
+        center_um = int(round((max_um - min_um) / 2))
+        # slider:
+        self.focus_piezo_z_um = tkcw.CheckboxSliderSpinbox(
+            self.focus_piezo_frame,
+            label='position (um)',
+            orient='vertical',
+            checkbox_enabled=False,
+            slider_fast_update=True,
+            slider_length=300,
+            tickinterval=9,
+            min_value=min_um,
+            max_value=max_um,
+            rowspan=5,
+            width=5)
+        def _move():
+            self.scope.apply_settings(
+                focus_piezo_z_um=(self.focus_piezo_z_um.value.get(),
+                                  'absolute'))
+            if self.running_scout_mode.get():
+                self._snap_and_display()
+            return None
+        self.focus_piezo_z_um.value.trace_add(
+            'write',
+            lambda var, index, mode: _move())
+        def _update_position(how):
+            # check current position:
+            z_um = self.focus_piezo_z_um.value.get()
+            # check which direction:
+            if how == 'large_up':     z_um -= large_move_um
+            if how == 'small_up':     z_um -= small_move_um
+            if how == 'center':       z_um  = center_um
+            if how == 'small_down':   z_um += small_move_um
+            if how == 'large_down':   z_um += large_move_um
+            # update:
+            self.focus_piezo_z_um.update_and_validate(z_um)
+            return None
+        button_width, button_height = 8, 2
+        # large up button:
+        button_large_move_up = tk.Button(
+            self.focus_piezo_frame,
+            text="+ %ium"%large_move_um,
+            command=lambda d='large_up': _update_position(d),
+            width=button_width,
+            height=button_height)
+        button_large_move_up.grid(row=0, column=1, padx=10, pady=10)
+        # small up button:
+        button_small_move_up = tk.Button(
+            self.focus_piezo_frame,
+            text="+ %ium"%small_move_um,
+            command=lambda d='small_up': _update_position(d),
+            width=button_width,
+            height=button_height)
+        button_small_move_up.grid(row=1, column=1, sticky='s')
+        # center button:
+        button_center_move = tk.Button(
+            self.focus_piezo_frame,
+            text="center",
+            command=lambda d='center': _update_position(d),
+            width=button_width,
+            height=button_height)
+        button_center_move.grid(row=2, column=1, padx=5, pady=5)
+        # small down button:
+        button_small_move_down = tk.Button(
+            self.focus_piezo_frame,
+            text="- %ium"%small_move_um,
+            command=lambda d='small_down': _update_position(d),
+            width=button_width,
+            height=button_height)
+        button_small_move_down.grid(row=3, column=1, sticky='n')
+        # large down button:
+        button_large_move_down = tk.Button(
+            self.focus_piezo_frame,
+            text="- %ium"%large_move_um,
+            command=lambda d='large_down': _update_position(d),
+            width=button_width,
+            height=button_height)
+        button_large_move_down.grid(row=4, column=1, padx=10, pady=10)
+        return None
+
     def init_autofocus(self):
         frame = tk.LabelFrame(self.root, text='AUTOFOCUS', bd=6)
-        frame.grid(row=2, column=3, padx=10, pady=10, sticky='n')
+        frame.grid(row=2, column=3, padx=10, pady=10, sticky='ne')
         frame_tip = tix.Balloon(frame)
         frame_tip.bind_widget(
             frame,
@@ -729,11 +731,17 @@ class GuiMicroscope:
         def _autofocus():
             if autofocus_enabled.get():
                 self.scope.apply_settings(autofocus_enabled=True)
+                # hide z hardware:
+                self.Z_stage_frame.grid_remove()
+                self.focus_piezo_frame.grid_remove()
             else:
                 self.scope.apply_settings(autofocus_enabled=False).join()
-                # update gui:
+                # update gui with any changes from autofocus:
                 self.focus_piezo_z_um.update_and_validate(
                     int(round(self.scope.focus_piezo_z_um)))
+                # show z hardware:
+                self.Z_stage_frame.grid()
+                self.focus_piezo_frame.grid()
             return None
         autofocus_enabled = tk.BooleanVar()
         autofocus_button = tk.Checkbutton(
@@ -749,7 +757,7 @@ class GuiMicroscope:
 
     def init_XY_stage(self):
         frame = tk.LabelFrame(self.root, text='XY STAGE', bd=6)
-        frame.grid(row=3, column=2, rowspan=2, columnspan=2,
+        frame.grid(row=6, column=2, rowspan=2, columnspan=2,
                    padx=10, pady=10, sticky='n')
         frame_tip = tix.Balloon(frame)
         frame_tip.bind_widget(
@@ -819,7 +827,7 @@ class GuiMicroscope:
             frame,
             label='step size (% of FOV)',
             checkbox_enabled=False,
-            slider_length=250,
+            slider_length=330,
             tickinterval=6,
             min_value=1,
             max_value=100,
@@ -1397,7 +1405,7 @@ class GuiMicroscope:
 
     def init_tile_navigator(self):
         frame = tk.LabelFrame(self.root, text='TILE NAVIGATOR', bd=6)
-        frame.grid(row=3, column=4, rowspan=2, padx=10, pady=10, sticky='n')
+        frame.grid(row=6, column=4, rowspan=2, padx=10, pady=10, sticky='n')
         button_width, button_height = 25, 2
         spinbox_width = 20
         # tile array width:
@@ -1802,7 +1810,7 @@ class GuiMicroscope:
 
     def init_settings_output(self):
         frame = tk.LabelFrame(self.root, text='SETTINGS OUTPUT', bd=6)
-        frame.grid(row=3, column=5, rowspan=2, padx=10, pady=10, sticky='n')
+        frame.grid(row=6, column=5, rowspan=2, padx=10, pady=10, sticky='n')
         button_width, button_height = 25, 2
         spinbox_width = 20
         # volumes per second textbox:
@@ -2222,7 +2230,7 @@ class GuiMicroscope:
     def init_acquire(self):
         frame = tk.LabelFrame(
             self.root, text='ACQUIRE', font=('Segoe UI', '10', 'bold'), bd=6)
-        frame.grid(row=3, column=6, rowspan=2, padx=10, pady=10, sticky='n')
+        frame.grid(row=6, column=6, rowspan=2, padx=10, pady=10, sticky='n')
         frame.bind('<Enter>', lambda event: frame.focus_set()) # force update
         button_width, button_height = 25, 2
         bold_width_adjust = -3
@@ -2427,7 +2435,7 @@ class GuiMicroscope:
     def init_exit(self):
         frame = tk.LabelFrame(
             self.root, text='EXIT', font=('Segoe UI', '10', 'bold'), bd=6)
-        frame.grid(row=5, column=6, padx=10, pady=10, sticky='n')
+        frame.grid(row=8, column=6, padx=10, pady=10, sticky='n')
         def _exit():
             if self.init_microscope: self.scope.close()
             self.root.quit()
