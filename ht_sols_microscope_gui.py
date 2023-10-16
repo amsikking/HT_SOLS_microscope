@@ -81,6 +81,7 @@ class GuiMicroscope:
                 self.data_bytes.set(self.scope.bytes_per_data_buffer)
                 self.preview_bytes.set(self.scope.bytes_per_preview_buffer)
                 self.buffer_time_s.set(self.scope.buffer_time_s)
+                self._check_autofocus()
                 self._check_joystick()
                 self.root.after(self.gui_delay_ms, _run_check_microscope)
                 return None
@@ -729,7 +730,7 @@ class GuiMicroscope:
                 "-> It is NOT intented to find the sample or find focus.\n " +
                 "-> Do NOT press any of the buttons on the controller.\n "))
         def _autofocus():
-            if autofocus_enabled.get():
+            if self.autofocus_enabled.get():
                 self.scope.apply_settings(autofocus_enabled=True)
                 # hide z hardware:
                 self.Z_stage_frame.grid_remove()
@@ -743,16 +744,23 @@ class GuiMicroscope:
                 self.Z_stage_frame.grid()
                 self.focus_piezo_frame.grid()
             return None
-        autofocus_enabled = tk.BooleanVar()
+        self.autofocus_enabled = tk.BooleanVar()
         autofocus_button = tk.Checkbutton(
             frame,
             text="Enable/Disable",
-            variable=autofocus_enabled,
+            variable=self.autofocus_enabled,
             command=_autofocus,
             indicatoron=0,
             width=25,
             height=2)
         autofocus_button.grid(row=0, column=0, padx=10, pady=10)
+        return None
+
+    def _check_autofocus(self):
+        if self.autofocus_enabled.get() and self.running_scout_mode.get():
+            offset = self.scope.autofocus.offset_lens_position
+            if offset != self.scope.autofocus._get_offset_lens_position():
+                self._snap_and_display()
         return None
 
     def init_XY_stage(self):
