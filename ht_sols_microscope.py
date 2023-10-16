@@ -505,9 +505,7 @@ class Microscope:
                     self.autofocus.set_servo_enable(True)
                 else:
                     self.focus_piezo.set_analog_control_enable(False)
-##                  race condition: should this be fixed at the device level?
-                    self.focus_piezo_z_um = self.focus_piezo.get_position(
-                        verbose=False) # blocks _set_analog_control_enable
+                    self.focus_piezo_z_um = self.focus_piezo.z # update attrib.
                     self.autofocus.set_servo_enable(False)
                     self.autofocus_sample_flag = None
                     self.autofocus_focus_flag  = None
