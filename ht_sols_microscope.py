@@ -25,6 +25,9 @@ try:
     import thorlabs_MLJ_Z_stage # github.com/amsikking/thorlabs_MLJ_Z_stage
     import thorlabs_MCM3000     # github.com/amsikking/thorlabs_MCM3000
     import prior_PureFocus850   # github.com/amsikking/prior_PureFocus850
+    # https://github.com/amsikking/any_immersion_remote_refocus_microscopy +
+    # /blob/main/figures/zoom_lens/mechanics/zoom_lens.py
+    import zoom_lens
     import shm_win_patch        # github.com/amsikking/shm_win_patch
     import concurrency_tools as ct              # github.com/AndrewGYork/tools
     from napari_in_subprocess import display    # github.com/AndrewGYork/tools
@@ -33,10 +36,10 @@ except Exception as e:
     print('ht_sols_microscope.py -> error =',e)
 
 # HT SOLS optical configuration (edit as needed):
-M1 = 200 / 5; Mscan = 100 / 100; M2 = 10 / 300; M3 = 200 / 9
+M1 = 200 / 5; Mscan = 100 / 100; M2 = 5 / 132.5; M3 = 250 / 9
 MRR = M1 * Mscan * M2; Mtot = MRR * M3;
 camera_px_um = 6.5; sample_px_um = camera_px_um / Mtot
-tilt = np.deg2rad(50)
+tilt = np.deg2rad(55)
 dichroic_mirror_options = {'ZT405/488/561/640rpc'   :0}
 emission_filter_options = {'Shutter'                :0,
                            'Open'                   :1,
@@ -72,6 +75,8 @@ class Microscope:
             target=self._init_filter_wheel).start() #~5.3s
         slow_camera_init = ct.ResultThread(
             target=self._init_camera).start()       #~3.6s
+        slow_zoom_lens_init = ct.ResultThread(
+            target=self._init_zoom_lens).start()    #~1.5s        
         slow_lasers_init = ct.ResultThread(
             target=self._init_lasers).start()       #~1.1s        
         slow_snoutfocus_init = ct.ResultThread(
@@ -96,6 +101,7 @@ class Microscope:
         slow_focus_init.get_result()
         slow_snoutfocus_init.get_result()
         slow_lasers_init.get_result()
+        slow_zoom_lens_init.get_result()
         slow_camera_init.get_result()
         slow_fw_init.get_result()
         # configure autofocus: (Z_drive, focus_piezo and autofocus initialized)
@@ -205,7 +211,7 @@ class Microscope:
         if self.verbose: print("\n%s: opening Z stage..."%self.name)
         self.Z_stage = thorlabs_MLJ_Z_stage.ZStage(
             which_ports=('COM7','COM9'),
-            limits_mm=(0, 20),
+            limits_mm=(0, 30),
             velocity_mmps=0.2,
             verbose=False)
         if self.verbose: print("\n%s: -> Z stage open."%self.name)
@@ -234,6 +240,16 @@ class Microscope:
             which_port='COM19', verbose=False)
         if self.verbose: print("\n%s: -> XY stage open."%self.name)
         atexit.register(self.XY_stage.close)
+
+    def _init_zoom_lens(self):
+        if self.verbose: print("\n%s: opening zoom lens..."%self.name)
+        self.zoom_lens = zoom_lens.ZoomLens(
+            stage1_port='COM28',
+            stage2_port='COM29',
+            stage3_port='COM11',
+            verbose=False)
+        if self.verbose: print("\n%s: -> zoom lens open."%self.name)
+        atexit.register(self.zoom_lens.close)
 
     def _init_datapreview(self):
         if self.verbose: print("\n%s: opening datapreview..."%self.name) 
@@ -296,7 +312,7 @@ class Microscope:
         jitter_px = max(self.ao.s2p(30e-6), 1)
         period_px = max(exposure_px, rolling_px) + jitter_px
         # Galvo voltages:
-        galvo_volts_per_um = -1.146 / 100 # calibrated using graticule
+        galvo_volts_per_um = 0.011395 # calibrated using laser spot
         galvo_scan_volts = galvo_volts_per_um * self.scan_range_um
         galvo_voltages = np.linspace(
             - galvo_scan_volts/2, galvo_scan_volts/2, self.slices_per_volume)
@@ -788,6 +804,7 @@ class Microscope:
         self.ao.close()
         self.filter_wheel.close()
         self.camera.close()
+        self.zoom_lens.close()
         self.lasers.close()
         self.snoutfocus_piezo.close()
         self.snoutfocus_shutter.close()
@@ -949,8 +966,8 @@ class DataPreview:
                 # Pass projections into allocated memory:
                 m = allocated_memory # keep code short!
                 m[v, c, l_px:y_px + l_px, l_px:x_px + l_px] = O1_img
-                m[v, c, y_px + 2*l_px:, l_px:x_px + l_px] = scan_img #np.flipud?
-                m[v, c, l_px:y_px + l_px, x_px + 2*l_px:] = width_img#np.flipud?
+                m[v, c, y_px + 2*l_px:, l_px:x_px + l_px] = np.flipud(scan_img)
+                m[v, c, l_px:y_px + l_px, x_px + 2*l_px:] = np.fliplr(width_img)
                 m[v, c, y_px + 2*l_px:, x_px + 2*l_px:] = np.full(
                     (scan_img.shape[0], width_img.shape[1]), 0)
                 # Add line separations between projections:
