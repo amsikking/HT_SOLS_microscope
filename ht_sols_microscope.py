@@ -1191,7 +1191,7 @@ if __name__ == '__main__':
         focus_piezo_z_um=(0,'relative'),
         XY_stage_position_mm=(0,0,'relative'),
         sample_ri=1.33,
-        ).join()
+        ).get_result()
 
     # Run snoutfocus and acquire:
     folder_label = 'ht_sols_test_data'
