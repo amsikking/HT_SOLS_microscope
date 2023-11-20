@@ -28,7 +28,8 @@ if __name__ == '__main__': # required block for sols_microscope
         autofocus_enabled=False,                # set 'True' for autofocus
         focus_piezo_z_um=(0,'relative'),        # = don't move
         XY_stage_position_mm=(0,0,'relative'),  # = don't move
-        ).join()
+        sample_ri=1.33,                         # 1.33 -> 1.51 (watery to oily)
+        ).get_result()
 
     # Get current XY position for moving back at the end of the script:
     x_mm_0, y_mm_0 = scope.XY_stage_position_mm
@@ -154,6 +155,7 @@ if __name__ == '__main__': # required block for sols_microscope
             z_um = dataz.estimate(preview, # parameters must match preview file!
                                   scope.height_px,
                                   scope.width_px,
+                                  scope.sample_px_um,
                                   scope.preview_line_px,
                                   scope.preview_crop_px,
                                   scope.timestamp_mode)
