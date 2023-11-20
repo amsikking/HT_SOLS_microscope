@@ -36,9 +36,8 @@ except Exception as e:
     print('ht_sols_microscope.py -> error =',e)
 
 # HT SOLS optical configuration (edit as needed):
-M1 = 200 / 5; Mscan = 100 / 100; M2 = 5 / 132.5; M3 = 250 / 9
-MRR = M1 * Mscan * M2; Mtot = MRR * M3;
-camera_px_um = 6.5; sample_px_um = camera_px_um / Mtot
+M1 = 200 / 5; Mscan = 100 / 100; M3 = 250 / 9;
+camera_px_um = 6.5
 tilt = np.deg2rad(55)
 dichroic_mirror_options = {'ZT405/488/561/640rpc'   :0}
 emission_filter_options = {'Shutter'                :0,
@@ -281,6 +280,7 @@ class Microscope:
                                           len(self.channels_per_slice),
                                           self.height_px,
                                           self.width_px,
+                                          self.sample_px_um,
                                           self.scan_step_size_px,
                                           self.preview_line_px,
                                           self.preview_crop_px,
@@ -394,7 +394,7 @@ class Microscope:
             'timestamp_mode':self.timestamp_mode,
             'scan_step_size_px':self.scan_step_size_px,
             'scan_step_size_um':calculate_scan_step_size_um(
-                self.scan_step_size_px),
+                self.sample_px_um, self.scan_step_size_px),
             'slices_per_volume':self.slices_per_volume,
             'scan_range_um': self.scan_range_um,
             'volumes_per_buffer':self.volumes_per_buffer,
@@ -405,14 +405,16 @@ class Microscope:
             'XY_stage_position_mm':self.XY_stage_position_mm,
             'Z_stage_position_mm':self.Z_stage.stage1.position_mm,
             'Z_drive_position_um':self.Z_drive_position_um,
+            'zoom_lens_f_mm':self.zoom_lens_f_mm,
             'objective1_name':objective1_options['name'][self.objective1],
             'objective1_WD_um':objective1_options['WD_um'][self.objective1],
             'preview_line_px':self.preview_line_px,
             'preview_crop_px':self.preview_crop_px,
-            'MRR':MRR,
-            'Mtot':Mtot,
+            'sample_ri':self.sample_ri,
+            'MRR':self.MRR,
+            'Mtot':self.Mtot,
             'tilt':tilt,
-            'sample_px_um':sample_px_um,
+            'sample_px_um':self.sample_px_um,
             'voxel_aspect_ratio':calculate_voxel_aspect_ratio(
                 self.scan_step_size_px),
             }
@@ -462,6 +464,7 @@ class Microscope:
         autofocus_enabled=None,     # Bool
         focus_piezo_z_um=None,      # (Float, "relative" or "absolute")
         XY_stage_position_mm=None,  # (Float, Float, "relative" or "absolute")
+        sample_ri=None,             # Float
         max_bytes_per_buffer=None,  # Int
         max_data_buffers=None,      # Int
         max_preview_buffers=None,   # Int
@@ -486,12 +489,28 @@ class Microscope:
                 self.height_px, self.width_px, self.roi_px = ( 
                     pco_edge42_cl.legalize_image_size(
                         h_px, w_px, verbose=False))
-            if voxel_aspect_ratio is not None or scan_range_um is not None:
+            if (voxel_aspect_ratio is not None or
+                scan_range_um is not None or
+                sample_ri is not None):
+                # update sample_ri dependents
+                assert 1.33 <= self.sample_ri <= 1.51, 'sample_ri out of range'
+                self.zoom_lens_f_mm = round(200 / self.sample_ri, 1)
+                # -> enough precision and sets f_mm=132.5 for ri=1.51 (legal)
+                if self.zoom_lens_f_mm > 150:
+                    self.zoom_lens_f_mm = 150 # legalize ri 1.33 to exactly 4/3
+                M2 = 5 / self.zoom_lens_f_mm
+                self.MRR = M1 * Mscan * M2; self.Mtot = self.MRR * M3;
+                self.sample_px_um = camera_px_um / self.Mtot
+                # update voxel_aspect_ratio/scan_range_um dependents
                 self.scan_step_size_px, self.slices_per_volume = (
-                    calculate_cuboid_voxel_scan(self.voxel_aspect_ratio,
-                                                self.scan_range_um))
+                    calculate_cuboid_voxel_scan(
+                        self.sample_px_um,
+                        self.voxel_aspect_ratio,
+                        self.scan_range_um))
                 self.scan_range_um = calculate_scan_range_um(
-                    self.scan_step_size_px, self.slices_per_volume)
+                    self.sample_px_um,
+                    self.scan_step_size_px,
+                    self.slices_per_volume)
                 assert 0 <= self.scan_range_um <= 500 # optical limit
             memory_exceeded = self._check_memory()
             if memory_exceeded:
@@ -508,6 +527,10 @@ class Microscope:
             else: # must update XY stage attributes if joystick was used
                 update_XY_stage_position_thread = ct.ResultThread(
                     target=self.XY_stage.get_position_mm).start()
+            if sample_ri is not None:
+                set_zoom_lens_f_mm_thread = ct.ResultThread(
+                    target=self.zoom_lens.set_focal_length_mm,
+                    args=(self.zoom_lens_f_mm,)).start()
             if emission_filter is not None:
                 self.filter_wheel.move(
                     emission_filter_options[emission_filter], block=False)
@@ -551,7 +574,8 @@ class Microscope:
                 illumination_time_us is not None or
                 voxel_aspect_ratio is not None or
                 scan_range_um is not None or
-                volumes_per_buffer is not None):
+                volumes_per_buffer is not None or
+                sample_ri is not None):
                 for channel in self.channels_per_slice:
                     assert channel in self.illumination_sources
                 assert len(self.power_per_channel) == (
@@ -571,6 +595,8 @@ class Microscope:
                 self.focus_piezo_z_um = self.focus_piezo.z
             if emission_filter is not None:
                 self.filter_wheel._finish_moving()
+            if sample_ri is not None:
+                set_zoom_lens_f_mm_thread.get_result()
             if XY_stage_position_mm is not None:
                 self.XY_stage._finish_moving()
                 self.XY_stage_position_mm = self.XY_stage.x, self.XY_stage.y
@@ -731,6 +757,7 @@ class Microscope:
             ch   = len(self.channels_per_slice)
             h_px = self.height_px
             w_px = self.width_px
+            s_um = self.sample_px_um
             s_px = self.scan_step_size_px
             l_px = self.preview_line_px
             c_px = self.preview_crop_px
@@ -758,9 +785,9 @@ class Microscope:
             # Acquisition is 3D, but display and filesaving are 5D:
             data_buffer = data_buffer.reshape(vo, sl, ch, h_px, w_px)
             preview_shape = DataPreview.shape(
-                vo, sl, ch, h_px, w_px, s_px, l_px, c_px, ts)
+                vo, sl, ch, h_px, w_px, s_um, s_px, l_px, c_px, ts)
             preview_buffer = self._get_preview_buffer(preview_shape, 'uint16')
-            self.datapreview.get(data_buffer, s_px, l_px, c_px, ts,
+            self.datapreview.get(data_buffer, s_um, s_px, l_px, c_px, ts,
                                  allocated_memory=preview_buffer)
             if display:
                 custody.switch_from(self.datapreview, to=self.display)
@@ -851,19 +878,22 @@ class _CustomNapariDisplay:
 # user can bypass these legalizers by directly setting the 'scan_step_size_px'
 # and 'scan_range_um' attributes after the last call to '.apply_settings()'.
 
-def calculate_scan_step_size_um(scan_step_size_px):
+def calculate_scan_step_size_um(sample_px_um, scan_step_size_px):
     return scan_step_size_px * sample_px_um / np.cos(tilt)
 
-def calculate_scan_range_um(scan_step_size_px, slices_per_volume):
-    scan_step_size_um = calculate_scan_step_size_um(scan_step_size_px)
+def calculate_scan_range_um(sample_px_um, scan_step_size_px, slices_per_volume):
+    scan_step_size_um = calculate_scan_step_size_um(
+        sample_px_um, scan_step_size_px)
     return scan_step_size_um * (slices_per_volume - 1)
 
 def calculate_voxel_aspect_ratio(scan_step_size_px):
     return scan_step_size_px * np.tan(tilt)
 
-def calculate_cuboid_voxel_scan(voxel_aspect_ratio, scan_range_um):
+def calculate_cuboid_voxel_scan(
+    sample_px_um, voxel_aspect_ratio, scan_range_um):
     scan_step_size_px = max(int(round(voxel_aspect_ratio / np.tan(tilt))), 1)
-    scan_step_size_um = calculate_scan_step_size_um(scan_step_size_px)
+    scan_step_size_um = calculate_scan_step_size_um(
+        sample_px_um, scan_step_size_px)
     slices_per_volume = 1 + int(round(scan_range_um / scan_step_size_um))
     return scan_step_size_px, slices_per_volume # watch out for fencepost!
 
@@ -877,12 +907,14 @@ class DataPreview:
               num_channels_per_slice, # = len(channels_per_slice)
               height_px,
               width_px,
+              sample_px_um,
               scan_step_size_px,
               preview_line_px,
               preview_crop_px,
               timestamp_mode):
         # Calculate max pixel shear:
-        scan_step_size_um = calculate_scan_step_size_um(scan_step_size_px)
+        scan_step_size_um = calculate_scan_step_size_um(
+            sample_px_um, scan_step_size_px)
         prop_px_per_scan_step = scan_step_size_um / ( # for an O1 axis view
             sample_px_um * np.cos(tilt))
         prop_px_shear_max = int(np.rint(
@@ -902,16 +934,18 @@ class DataPreview:
 
     def get(self,
             data, # raw 5D data, 'tzcyx' input -> 'tcyx' output
+            sample_px_um,
             scan_step_size_px,
             preview_line_px,
             preview_crop_px,
             timestamp_mode,
             allocated_memory=None):
         vo, slices, ch, h_px, w_px = data.shape
-        s_px, l_px, c_px = scan_step_size_px, preview_line_px, preview_crop_px
+        s_um, s_px = sample_px_um, scan_step_size_px
+        l_px, c_px = preview_line_px, preview_crop_px
         # Get preview shape and check allocated memory (or make new array):
         preview_shape = self.shape(
-            vo, slices, ch, h_px, w_px, s_px, l_px, c_px, timestamp_mode)
+            vo, slices, ch, h_px, w_px, s_um, s_px, l_px, c_px, timestamp_mode)
         if allocated_memory is not None:
             assert allocated_memory.shape == preview_shape
             return_value = None # use given memory and avoid return
@@ -922,7 +956,8 @@ class DataPreview:
         if timestamp_mode == "binary+ASCII": t_px = 8 # ignore timestamps
         prop_px = h_px - t_px - b_px # i.e. prop_px = h_px (with cropping)
         data = data[:, :, :, t_px:h_px - b_px, :]
-        scan_step_size_um = calculate_scan_step_size_um(scan_step_size_px)
+        scan_step_size_um = calculate_scan_step_size_um(
+            sample_px_um, scan_step_size_px)
         # Calculate max px shear on the propagation axis for an 'O1' projection:
         # -> more shear than for a 'native' projection
         prop_px_per_scan_step = scan_step_size_um / ( # O1 axis view
@@ -991,7 +1026,8 @@ class DataZ:
         self,
         preview_image, # 2D preview image: single volume, single channel
         height_px,
-        width_px,       
+        width_px,
+        sample_px_um,
         preview_line_px,
         preview_crop_px,
         timestamp_mode,
@@ -1154,6 +1190,7 @@ if __name__ == '__main__':
         autofocus_enabled=False,
         focus_piezo_z_um=(0,'relative'),
         XY_stage_position_mm=(0,0,'relative'),
+        sample_ri=1.33,
         ).join()
 
     # Run snoutfocus and acquire:
