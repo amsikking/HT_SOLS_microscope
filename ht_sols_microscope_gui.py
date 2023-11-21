@@ -33,6 +33,7 @@ class GuiMicroscope:
         self.init_dichroic_mirror()
         self.init_filter_wheel()
         self.init_camera()
+        self.init_sample()
         self.init_galvo()
         self.init_Z_stage()
         self.init_focus_piezo()
@@ -67,7 +68,9 @@ class GuiMicroscope:
                 volumes_per_buffer   = self.volumes_per_buffer.value.get(),
                 autofocus_enabled    = False,
                 focus_piezo_z_um     = (0, 'relative'),
-                XY_stage_position_mm = (0, 0, 'relative')).join() # finish
+                XY_stage_position_mm = (0, 0, 'relative'),
+                sample_ri            = self.sample_ri.value.get()
+                ).get_result() # finish
             # get XYZ direct from hardware and update gui to aviod motion:
             self.focus_piezo_z_um.update_and_validate(
                 int(round(self.scope.focus_piezo.z)))
@@ -75,7 +78,8 @@ class GuiMicroscope:
                 [self.scope.XY_stage.x, self.scope.XY_stage.y])
             # check microscope periodically:
             def _run_check_microscope():
-                self.scope.apply_settings().join() # update attributes
+                self.scope.apply_settings().get_result() # update attributes
+                self.sample_px_um = self.scope.sample_px_um
                 self.volumes_per_s.set(self.scope.volumes_per_s)
                 self.total_bytes.set(self.scope.total_bytes)
                 self.data_bytes.set(self.scope.bytes_per_data_buffer)
@@ -266,7 +270,7 @@ class GuiMicroscope:
 
     def init_camera(self):
         frame = tk.LabelFrame(self.root, text='CAMERA', bd=6)
-        frame.grid(row=1, column=1, rowspan=2, padx=10, pady=10, sticky='n')
+        frame.grid(row=1, column=1, rowspan=4, padx=10, pady=10, sticky='n')
         # illumination_time_us:
         self.illumination_time_us = tkcw.CheckboxSliderSpinbox(
             frame,
@@ -323,7 +327,7 @@ class GuiMicroscope:
             frame,
             label='width pixels',
             checkbox_enabled=False,
-            slider_length=240,
+            slider_length=260,
             tickinterval=4,
             min_value=60,
             max_value=1500,
@@ -351,6 +355,71 @@ class GuiMicroscope:
             row=1,
             column=1,
             fill='yellow')
+        return None
+
+    def init_sample(self):
+        frame = tk.LabelFrame(self.root, text='SAMPLE', bd=6)
+        frame.grid(row=5, column=1, rowspan=1, padx=10, pady=10, sticky='s')
+        slider_length = 365 # match to camera
+        button_width, button_height = 10, 2
+        # ri slider:
+        sample_ri_min, sample_ri_max, sample_ri_center = 1.33, 1.51, 1.38
+        self.sample_ri = tkcw.CheckboxSliderSpinbox(
+            frame,
+            label='~refractive index',
+            checkbox_enabled=False,
+            slider_length=slider_length,
+            tickinterval=6,
+            min_value=sample_ri_min,
+            max_value=sample_ri_max,
+            default_value=sample_ri_center,
+            increment=0.01,
+            integers_only=False,            
+            row=0,
+            width=5)
+        self.sample_ri.value.trace_add(
+            'write',
+            lambda var, index, mode: self.scope.apply_settings(
+                sample_ri=self.sample_ri.value.get())) 
+        sample_ri_tip = tix.Balloon(self.sample_ri)
+        sample_ri_tip.bind_widget(
+            self.sample_ri,
+            balloonmsg=(
+                "The '~refractive index' setting adjusts the zoom lens \n" +
+                "in the microscope to set the correct remote refocus \n" +
+                "magnification for best 3D imaging peformance.\n" +
+                "NOTE: search for 'AIRR microscopy' to understand more \n" +
+                "(doi:10.5281/zenodo.7425649)."))
+        # ri min button:
+        button_sample_ri_min = tk.Button(
+            frame,
+            text="watery",
+            command=lambda: self.sample_ri.update_and_validate(
+                sample_ri_min),
+            width=button_width,
+            height=button_height)
+        button_sample_ri_min.grid(
+            row=1, column=0, padx=10, pady=10, sticky='w')
+        # ri center button:
+        button_sample_ri_center = tk.Button(
+            frame,
+            text="live bio?",
+            command=lambda: self.sample_ri.update_and_validate(
+                sample_ri_center),
+            width=button_width,
+            height=button_height)
+        button_sample_ri_center.grid(
+            row=1, column=0, padx=5, pady=5)
+        # ri max button:
+        button_sample_ri_max = tk.Button(
+            frame,
+            text="oily",
+            command=lambda: self.sample_ri.update_and_validate(
+                sample_ri_max),
+            width=button_width,
+            height=button_height)
+        button_sample_ri_max.grid(
+            row=1, column=0, padx=10, pady=10, sticky='e')
         return None
 
     def init_galvo(self):
@@ -483,7 +552,7 @@ class GuiMicroscope:
     def _snap_and_display(self):
         if self.volumes_per_buffer.value.get() != 1:
             self.volumes_per_buffer.update_and_validate(1)
-        self.last_acquire_task.join()# don't accumulate
+        self.last_acquire_task.get_result()# don't accumulate
         self.last_acquire_task = self.scope.acquire()
         return None
 
@@ -491,7 +560,7 @@ class GuiMicroscope:
         self.Z_stage_frame = tk.LabelFrame(self.root, text='Z STAGE', bd=6)
         self.Z_stage_frame.grid(row=1, column=2, padx=10, pady=10, sticky='n')
         button_width, button_height = 25, 2
-        limits_mm = (0, 20)     # range (adjust as needed)
+        limits_mm = (0, 30)     # range (adjust as needed)
         limits_mmps = (0.2, 1)  # velocity (adjust as needed)
         edge_limits_mm = (limits_mm[0] + 0.1, limits_mm[1] - 0.1)
         # z stage popup:
@@ -625,7 +694,7 @@ class GuiMicroscope:
         self.focus_piezo_frame = tk.LabelFrame(
             self.root, text='FOCUS PIEZO', bd=6)
         self.focus_piezo_frame.grid(
-            row=2, column=2, rowspan=2, padx=10, pady=10, sticky='n')
+            row=2, column=2, rowspan=4, padx=10, pady=10, sticky='n')
         frame_tip = tix.Balloon(self.focus_piezo_frame)
         frame_tip.bind_widget(
             self.focus_piezo_frame,
@@ -736,7 +805,7 @@ class GuiMicroscope:
                 self.Z_stage_frame.grid_remove()
                 self.focus_piezo_frame.grid_remove()
             else:
-                self.scope.apply_settings(autofocus_enabled=False).join()
+                self.scope.apply_settings(autofocus_enabled=False).get_result()
                 # update gui with any changes from autofocus:
                 self.focus_piezo_z_um.update_and_validate(
                     int(round(self.scope.focus_piezo_z_um)))
@@ -815,7 +884,7 @@ class GuiMicroscope:
             # calculate move size:
             move_factor = move_pct.value.get() / 100
             ud_move_mm = 1e-3 * self.scan_range_um.value.get() * move_factor
-            scan_width_um = self.width_px.value.get() * ht_sols.sample_px_um
+            scan_width_um = self.width_px.value.get() * self.sample_px_um
             lr_move_mm = 1e-3 * scan_width_um * move_factor
             # check which direction:
             if how == 'up (+Y)':       move_mm = (0,  ud_move_mm)
@@ -927,7 +996,7 @@ class GuiMicroscope:
 
     def init_grid_navigator(self):
         frame = tk.LabelFrame(self.root, text='GRID NAVIGATOR', bd=6)
-        frame.grid(row=1, column=4, rowspan=2, padx=10, pady=10, sticky='n')
+        frame.grid(row=1, column=4, rowspan=5, padx=10, pady=10, sticky='n')
         button_width, button_height = 25, 2
         spinbox_width = 20
         # load from file:
@@ -1299,7 +1368,7 @@ class GuiMicroscope:
                 folder_name = self._get_folder_name() + '_grid_tile'
                 # calculate move size:
                 tile_X_mm = (
-                    1e-3 * self.width_px.value.get() * ht_sols.sample_px_um)
+                    1e-3 * self.width_px.value.get() * self.sample_px_um)
                 tile_Y_mm = 1e-3 * self.scan_range_um.value.get()
                 # update preview list:
                 self.grid_preview_list = []
@@ -1339,7 +1408,7 @@ class GuiMicroscope:
                     filename=filename,
                     folder_name=folder_name,
                     description=self.description_textbox.text,
-                    preview_only=preview_only).join()
+                    preview_only=preview_only).get_result()
                 grid_preview_filename = (folder_name + '\preview\\' + filename)
                 while not os.path.isfile(grid_preview_filename):
                     self.root.after(self.gui_delay_ms)
@@ -1459,7 +1528,7 @@ class GuiMicroscope:
                 self.volumes_per_buffer.update_and_validate(1)
             folder_name = self._get_folder_name() + '_tile'
             # calculate move size:
-            X_move_mm = 1e-3 * self.width_px.value.get() * ht_sols.sample_px_um
+            X_move_mm = 1e-3 * self.width_px.value.get() * self.sample_px_um
             Y_move_mm = 1e-3 * self.scan_range_um.value.get()
             # generate tile list:
             self.tile_list = []
@@ -1484,7 +1553,7 @@ class GuiMicroscope:
                     filename=filename,
                     folder_name=folder_name,
                     description=self.description_textbox.text,
-                    preview_only=preview_only).join()
+                    preview_only=preview_only).get_result()
                 tile_filename = (folder_name + '\preview\\' + filename)
                 while not os.path.isfile(tile_filename):
                     self.root.after(self.gui_delay_ms)
@@ -1601,7 +1670,7 @@ class GuiMicroscope:
 
     def init_settings(self):
         frame = tk.LabelFrame(self.root, text='SETTINGS (misc)', bd=6)
-        frame.grid(row=1, column=5, rowspan=2, padx=10, pady=10, sticky='n')
+        frame.grid(row=1, column=5, rowspan=5, padx=10, pady=10, sticky='n')
         button_width, button_height = 25, 2
         spinbox_width = 20
         # load from file:
@@ -1951,7 +2020,7 @@ class GuiMicroscope:
 
     def init_position_list(self):
         frame = tk.LabelFrame(self.root, text='POSITION LIST', bd=6)
-        frame.grid(row=1, column=6, rowspan=2, padx=10, pady=10, sticky='n')
+        frame.grid(row=1, column=6, rowspan=5, padx=10, pady=10, sticky='n')
         button_width, button_height = 25, 2
         spinbox_width = 20
         # set list defaults:
@@ -2323,7 +2392,7 @@ class GuiMicroscope:
                 self.volumes_per_buffer.update_and_validate(1)
             self._update_position_list()
             folder_name = self._get_folder_name() + '_snap'
-            self.last_acquire_task.join() # don't accumulate acquires
+            self.last_acquire_task.get_result() # don't accumulate acquires
             self.scope.acquire(filename='snap.tif',
                                folder_name=folder_name,
                                description=self.description_textbox.text)
