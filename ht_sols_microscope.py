@@ -1000,7 +1000,7 @@ class DataPreview:
                 line_min, line_max = O1_img.min(), O1_img.max()
                 # Pass projections into allocated memory:
                 m = allocated_memory # keep code short!
-                m[v, c, l_px:y_px + l_px, l_px:x_px + l_px] = O1_img
+                m[v, c, l_px:y_px + l_px, l_px:x_px + l_px] = np.flip(O1_img)
                 m[v, c, y_px + 2*l_px:, l_px:x_px + l_px] = np.flipud(scan_img)
                 m[v, c, l_px:y_px + l_px, x_px + 2*l_px:] = np.fliplr(width_img)
                 m[v, c, y_px + 2*l_px:, x_px + 2*l_px:] = np.full(
