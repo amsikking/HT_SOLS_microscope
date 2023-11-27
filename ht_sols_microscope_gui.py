@@ -429,8 +429,7 @@ class GuiMicroscope:
         button_width, button_height = 10, 2
         # scan slider:
         scan_range_um_min, scan_range_um_max = 1, 250
-        scan_range_um_center = int(round((
-            scan_range_um_max - scan_range_um_min) / 2))
+        scan_range_um_scout = 50
         self.scan_range_um = tkcw.CheckboxSliderSpinbox(
             frame,
             label='~scan range (um)',
@@ -439,7 +438,7 @@ class GuiMicroscope:
             tickinterval=10,
             min_value=scan_range_um_min,
             max_value=scan_range_um_max,
-            default_value=scan_range_um_center,
+            default_value=scan_range_um_scout,
             row=0,
             width=5)
         self.scan_range_um.value.trace_add(
@@ -465,15 +464,15 @@ class GuiMicroscope:
             height=button_height)
         button_scan_range_um_min.grid(
             row=1, column=0, padx=10, pady=10, sticky='w')
-        # scan center button:
-        button_scan_range_um_center = tk.Button(
+        # scan scout button:
+        button_scan_range_um_scout = tk.Button(
             frame,
-            text="center",
+            text="scout?",
             command=lambda: self.scan_range_um.update_and_validate(
-                scan_range_um_center),
+                scan_range_um_scout),
             width=button_width,
             height=button_height)
-        button_scan_range_um_center.grid(
+        button_scan_range_um_scout.grid(
             row=1, column=0, padx=5, pady=5)
         # scan max button:
         button_scan_range_um_max = tk.Button(
@@ -552,7 +551,7 @@ class GuiMicroscope:
     def _snap_and_display(self):
         if self.volumes_per_buffer.value.get() != 1:
             self.volumes_per_buffer.update_and_validate(1)
-        self.last_acquire_task.get_result()# don't accumulate
+        self.last_acquire_task.get_result() # don't accumulate
         self.last_acquire_task = self.scope.acquire()
         return None
 
@@ -580,6 +579,8 @@ class GuiMicroscope:
         def _stop():
             self.scope.Z_stage.stop(mode='abrupt')
             _get_position()
+            if self.running_scout_mode.get():
+                self._snap_and_display()
             return None
         # up:
         def _move_up():
@@ -2334,7 +2335,8 @@ class GuiMicroscope:
             self._set_running_mode('live_mode')
             def _run_live_mode():
                 if self.running_live_mode.get():
-                    self._snap_and_display()
+                    if not self.last_acquire_task.is_alive():
+                        self._snap_and_display()
                     self.root.after(self.gui_delay_ms, _run_live_mode)
                 return None
             _run_live_mode()
