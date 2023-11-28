@@ -1001,8 +1001,8 @@ class DataPreview:
                 # Pass projections into allocated memory:
                 m = allocated_memory # keep code short!
                 m[v, c, l_px:y_px + l_px, l_px:x_px + l_px] = np.flip(O1_img)
-                m[v, c, y_px + 2*l_px:, l_px:x_px + l_px] = np.flipud(scan_img)
-                m[v, c, l_px:y_px + l_px, x_px + 2*l_px:] = np.fliplr(width_img)
+                m[v, c, y_px + 2*l_px:, l_px:x_px + l_px] = np.flip(scan_img)
+                m[v, c, l_px:y_px + l_px, x_px + 2*l_px:] = np.flip(width_img)
                 m[v, c, y_px + 2*l_px:, x_px + 2*l_px:] = np.full(
                     (scan_img.shape[0], width_img.shape[1]), 0)
                 # Add line separations between projections:
