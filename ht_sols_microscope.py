@@ -864,10 +864,25 @@ class Microscope:
         if self.verbose: print("%s: done closing."%self.name)
 
 class _CustomNapariDisplay:
-    def __init__(self):
+    def __init__(self, auto_contrast=False):
+        self.auto_contrast = auto_contrast
         self.viewer = napari.Viewer()
 
+    def _legalize_slider(self, image):
+        for ax in range(len(image.shape) - 2): # slider axes other than X, Y
+            # if the current viewer slider steps > corresponding image shape:
+            if self.viewer.dims.nsteps[ax] > image.shape[ax]:
+                # set the slider position to the max legal value:
+                self.viewer.dims.set_point(ax, image.shape[ax] - 1)
+
+    def _reset_contrast(self, image): # 4D image min to max
+        for layer in self.viewer.layers: # image, grid, tile
+            layer.contrast_limits = (image.min(), image.max())
+
     def show_image(self, last_preview):
+        self._legalize_slider(last_preview)
+        if self.auto_contrast:
+            self._reset_contrast(last_preview)
         if not hasattr(self, 'last_image'):
             self.last_image = self.viewer.add_image(last_preview)
         else:
