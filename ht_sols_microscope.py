@@ -20,8 +20,7 @@ try:
     import pco_edge42_cl            # github.com/amsikking/pco_edge42_cl
     import pi_C_867_2U2             # github.com/amsikking/pi_C_867_2U2
     import pi_E_709_1C1L            # github.com/amsikking/pi_E_709_1C1L
-    import prior_PureFocus850       # github.com/amsikking/prior_PureFocus850    
-    import shm_win_patch            # github.com/amsikking/shm_win_patch
+    import prior_PureFocus850       # github.com/amsikking/prior_PureFocus850
     import sutter_Lambda_10_3       # github.com/amsikking/sutter_Lambda_10_3
     import thorlabs_KSC101          # github.com/amsikking/thorlabs_KSC101    
     import thorlabs_MCM3000         # github.com/amsikking/thorlabs_MCM3000
@@ -364,9 +363,9 @@ class Microscope:
         self, filename, folder_name, description, display, preview_only):
         def make_folders(folder_name):
             os.makedirs(folder_name)
-            os.makedirs(folder_name + '\data')
-            os.makedirs(folder_name + '\metadata')
-            os.makedirs(folder_name + '\preview')                    
+            os.makedirs(folder_name + '\\data')
+            os.makedirs(folder_name + '\\metadata')
+            os.makedirs(folder_name + '\\preview')                    
         assert type(filename) is str
         if folder_name is None:
             folder_index = 0
@@ -378,9 +377,9 @@ class Microscope:
             make_folders(folder_name)
         else:
             if not os.path.exists(folder_name): make_folders(folder_name)
-        data_path =     folder_name + '\data\\'     + filename
-        metadata_path = folder_name + '\metadata\\' + filename
-        preview_path =  folder_name + '\preview\\'  + filename
+        data_path =     folder_name + '\\data\\'     + filename
+        metadata_path = folder_name + '\\metadata\\' + filename
+        preview_path =  folder_name + '\\preview\\'  + filename
         # save metadata:
         to_save = {
             # date and time:
