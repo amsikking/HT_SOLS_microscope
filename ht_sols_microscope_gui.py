@@ -103,8 +103,9 @@ class GuiMicroscope:
             dt = datetime.strftime(datetime.now(),'%Y-%m-%d_%H-%M-%S_')
             self.session_folder = dt + 'ht_sols_gui_session\\'
             os.makedirs(self.session_folder)
-            # snap a volume:
+            # snap a volume and enable scout mode:
             self.last_acquire_task = self.scope.acquire()
+            self.running_scout_mode.set(True)
         # start event loop:
         self.root.mainloop() # blocks here until 'QUIT'
         self.root.destroy()
@@ -2191,16 +2192,19 @@ class GuiMicroscope:
                     p = total_positions
             if how == 'end':
                 p = total_positions
+            # record status of scout mode and switch off:
+            self.scout_mode_status.set(self.running_scout_mode.get())
+            self.running_scout_mode.set(0) # avoids snap from focus piezo                
             # move:
             self.focus_piezo_z_um.update_and_validate(
                 self.focus_piezo_position_list[p - 1])
             self._update_XY_stage_position(
                 self.XY_stage_position_list[p - 1])
-            # update gui:
+            # update gui and snap:
             self.current_position.update_and_validate(p)
-            # turn off scout mode and snap:
-            self.running_scout_mode.set(0)
             self._snap_and_display()
+            # re-apply scout mode:
+            self.running_scout_mode.set(self.scout_mode_status.get())
             return None
         # move to start:
         move_to_start_button = tk.Button(
@@ -2332,7 +2336,10 @@ class GuiMicroscope:
                 "NOTE: this does not save any data or position information."))
         # live mode:
         def _live_mode():
-            self._set_running_mode('live_mode')
+            if self.running_live_mode.get():
+                self._set_running_mode('live_mode')
+            else:
+                self._set_running_mode('None')
             def _run_live_mode():
                 if self.running_live_mode.get():
                     if not self.last_acquire_task.is_alive():
@@ -2541,7 +2548,8 @@ class GuiMicroscope:
                                  'tile_preview': self.running_tile_preview,
                                  'live_mode':    self.running_live_mode,
                                  'scout_mode':   self.running_scout_mode,
-                                 'acquire':      self.running_acquire}        
+                                 'acquire':      self.running_acquire}
+        self.scout_mode_status = tk.BooleanVar()
         # cancel running mode popup:
         self.cancel_running_mode_popup = tk.Toplevel()
         self.cancel_running_mode_popup.title('Cancel current process')
@@ -2571,20 +2579,29 @@ class GuiMicroscope:
         return None
 
     def _set_running_mode(self, mode):
-        self.running_mode.set(mode)
-        for v in self.mode_to_variable.values():
-            if mode == 'None':  # turn everything off
-                v.set(0)
-                self.cancel_running_mode_popup.withdraw()
-                self.cancel_running_mode_popup.grab_release()
-            else:               # turn everything off except current mode
+        if mode != 'None':
+            # record status of scout mode:
+            self.scout_mode_status.set(self.running_scout_mode.get())
+            # turn everything off except current mode:
+            for v in self.mode_to_variable.values():
                 if v != self.mode_to_variable[mode]:
                     v.set(0)
         if mode in ('grid_preview', 'tile_preview', 'acquire'):
-            self.cancel_running_mode_button.config(
-                text=('Cancel: ' + self.running_mode.get()))
+            # update cancel text:
+            self.running_mode.set(mode) # string for '_cancel' print
+            self.cancel_running_mode_button.config(text=('Cancel: ' + mode))
+            # display cancel popup and grab set:
             self.cancel_running_mode_popup.deiconify()
             self.cancel_running_mode_popup.grab_set()
+        if mode == 'None':
+            # turn everything off:
+            for v in self.mode_to_variable.values():
+                v.set(0)
+            # hide cancel popup and release set:
+            self.cancel_running_mode_popup.withdraw()
+            self.cancel_running_mode_popup.grab_release()
+            # re-apply scout mode:
+            self.running_scout_mode.set(self.scout_mode_status.get())
         return None
 
 if __name__ == '__main__':
