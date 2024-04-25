@@ -630,7 +630,7 @@ class GuiMicroscope:
         def _run_update_position():
             if edge_limits_mm[0] <= self.Z_stage_mm <= edge_limits_mm[1]:
                 _get_position()
-            position_textbox.textbox.delete('1.0', '10.0')
+            position_textbox.textbox.delete('1.0', 'end')
             position_textbox.textbox.insert(
                 '1.0', 'Z=%0.3f'%self.Z_stage_mm)
             wait_ms = 33
@@ -876,7 +876,7 @@ class GuiMicroscope:
             height=1,
             width=10)
         def _update_last_move():
-            last_move_textbox.textbox.delete('1.0', '10.0')
+            last_move_textbox.textbox.delete('1.0', 'end')
             last_move_textbox.textbox.insert('1.0', self.last_move.get())
             return None
         self.last_move.trace_add(
@@ -910,7 +910,7 @@ class GuiMicroscope:
             tickinterval=6,
             min_value=1,
             max_value=100,
-            default_value=100,
+            default_value=50,
             row=4,
             columnspan=3,
             width=5)
@@ -953,7 +953,7 @@ class GuiMicroscope:
         X, Y = XY_stage_position_mm[0], XY_stage_position_mm[1]
         XY_string = '[%0.3f, %0.3f]'%(X, Y)
         # textbox:
-        self.XY_stage_position_textbox.textbox.delete('1.0', '10.0')
+        self.XY_stage_position_textbox.textbox.delete('1.0', 'end')
         self.XY_stage_position_textbox.textbox.insert('1.0', XY_string)
         # attributes
         self.X_stage_position_mm, self.Y_stage_position_mm = X, Y
@@ -1229,7 +1229,7 @@ class GuiMicroscope:
         def _update_grid_location():
             r, c, p_mm = self.grid_list(self.grid_location.get())
             name = '%s%i'%(chr(ord('@') + r + 1), c + 1)
-            self.grid_location_textbox.textbox.delete('1.0', '10.0')
+            self.grid_location_textbox.textbox.delete('1.0', 'end')
             self.grid_location_textbox.textbox.insert('1.0', name)
             return None
         self.grid_location = tk.IntVar()
@@ -1893,7 +1893,7 @@ class GuiMicroscope:
         button_width, button_height = 25, 2
         spinbox_width = 20
         # volumes per second textbox:
-        self.volumes_per_s = tk.IntVar()
+        self.volumes_per_s = tk.DoubleVar()
         volumes_per_s_textbox = tkcw.Textbox(
             frame,
             label='Volumes per second',
@@ -1903,7 +1903,7 @@ class GuiMicroscope:
             height=1)
         def _update_volumes_per_s():            
             text = '%0.3f'%self.volumes_per_s.get()
-            volumes_per_s_textbox.textbox.delete('1.0', '10.0')
+            volumes_per_s_textbox.textbox.delete('1.0', 'end')
             volumes_per_s_textbox.textbox.insert('1.0', text)
             return None
         self.volumes_per_s.trace_add(
@@ -1932,7 +1932,7 @@ class GuiMicroscope:
             max_memory_gb = 1e-9 * self.max_allocated_bytes
             memory_pct = 100 * total_memory_gb / max_memory_gb
             text = '%0.3f (%0.2f%% of max)'%(total_memory_gb, memory_pct)
-            total_memory_textbox.textbox.delete('1.0', '10.0')
+            total_memory_textbox.textbox.delete('1.0', 'end')
             total_memory_textbox.textbox.insert('1.0', text)
             return None
         self.total_bytes.trace_add(
@@ -1965,7 +1965,7 @@ class GuiMicroscope:
             preview_gb = 1e-9 * self.preview_bytes.get()
             total_storage_gb = (data_gb + preview_gb) * positions * acquires
             text = '%0.3f'%total_storage_gb
-            total_storage_textbox.textbox.delete('1.0', '10.0')
+            total_storage_textbox.textbox.delete('1.0', 'end')
             total_storage_textbox.textbox.insert('1.0', text)
             return None
         self.data_bytes.trace_add(
@@ -1998,11 +1998,11 @@ class GuiMicroscope:
             min_total_time_s = min_acquire_time_s * acquires
             delay_s = self.delay_s.value.get()
             if delay_s > min_acquire_time_s:
-                min_total_time_s = (
+                min_total_time_s = ( # start -> n-1 delays -> final acquire
                     delay_s * (acquires - 1) + min_acquire_time_s)
             text = '%0.6f (%0.0f min)'%(
                 min_total_time_s, (min_total_time_s / 60))
-            min_time_textbox.textbox.delete('1.0', '10.0')
+            min_time_textbox.textbox.delete('1.0', 'end')
             min_time_textbox.textbox.insert('1.0', text)
             return None
         self.buffer_time_s.trace_add(
