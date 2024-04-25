@@ -354,7 +354,7 @@ class Microscope:
         plt.show()
 
     def _prepare_to_save(
-        self, filename, folder_name, description, preview_only):
+        self, filename, folder_name, description, display, preview_only):
         def make_folders(folder_name):
             os.makedirs(folder_name)
             os.makedirs(folder_name + '\data')
@@ -376,47 +376,62 @@ class Microscope:
         preview_path =  folder_name + '\preview\\'  + filename
         # save metadata:
         to_save = {
+            # date and time:
             'Date':datetime.strftime(datetime.now(),'%Y-%m-%d'),
             'Time':datetime.strftime(datetime.now(),'%H:%M:%S'),
+            # args from 'acquire':
             'filename':filename,
             'folder_name':folder_name,
             'description':description,
+            'display':display,
             'preview_only':preview_only,
+            # attributes from 'apply_settings':
+            # -> args
             'channels_per_slice':tuple(self.channels_per_slice),
             'power_per_channel':tuple(self.power_per_channel),
-            'dichroic_mirror':self.dichroic_mirror,
             'emission_filter':self.emission_filter,
             'illumination_time_us':self.illumination_time_us,
-            'volumes_per_s':self.volumes_per_s,
-            'buffer_time_s':self.buffer_time_s,
             'height_px':self.height_px,
             'width_px':self.width_px,
             'timestamp_mode':self.timestamp_mode,
-            'scan_step_size_px':self.scan_step_size_px,
-            'scan_step_size_um':calculate_scan_step_size_um(
-                self.sample_px_um, self.scan_step_size_px),
-            'slices_per_volume':self.slices_per_volume,
+            'voxel_aspect_ratio':self.voxel_aspect_ratio,
             'scan_range_um': self.scan_range_um,
             'volumes_per_buffer':self.volumes_per_buffer,
             'autofocus_enabled':self.autofocus_enabled,
-            'autofocus_sample_flag':self.autofocus_sample_flag,
-            'autofocus_focus_flag':self.autofocus_focus_flag,
             'focus_piezo_z_um':self.focus_piezo_z_um,
             'XY_stage_position_mm':self.XY_stage_position_mm,
+            'sample_ri':self.sample_ri,
+            'max_bytes_per_buffer':self.max_bytes_per_buffer,
+            'max_data_buffers':self.max_data_buffers,
+            'max_preview_buffers':self.max_preview_buffers,
+            'preview_line_px':self.preview_line_px,
+            'preview_crop_px':self.preview_crop_px,
+            # -> calculated
+            'scan_step_size_px':self.scan_step_size_px,
+            'slices_per_volume':self.slices_per_volume,
+            'scan_step_size_um':self.scan_step_size_um,
+            'buffer_time_s':self.buffer_time_s,
+            'volumes_per_s':self.volumes_per_s,
+            # -> additional
+            'autofocus_sample_flag':self.autofocus_sample_flag,
+            'autofocus_focus_flag':self.autofocus_focus_flag,
             'Z_stage_position_mm':self.Z_stage.stage1.position_mm,
             'Z_drive_position_um':self.Z_drive_position_um,
             'zoom_lens_f_mm':self.zoom_lens_f_mm,
             'objective1_name':objective1_options['name'][self.objective1],
-            'objective1_WD_um':objective1_options['WD_um'][self.objective1],
-            'preview_line_px':self.preview_line_px,
-            'preview_crop_px':self.preview_crop_px,
-            'sample_ri':self.sample_ri,
+            'objective1_WD_um':objective1_options['WD_um'][self.objective1],            
+            # optical configuration:
+            'M1':M1,
+            'Mscan':Mscan,
+            'M2':self.M2,
+            'M3':M3,
             'MRR':self.MRR,
             'Mtot':self.Mtot,
-            'tilt':tilt,
+            'camera_px_um':camera_px_um,
             'sample_px_um':self.sample_px_um,
-            'voxel_aspect_ratio':calculate_voxel_aspect_ratio(
-                self.scan_step_size_px),
+            'tilt':tilt,
+            'tilt_deg':np.rad2deg(tilt),
+            'dichroic_mirror':self.dichroic_mirror,
             }
         with open(os.path.splitext(metadata_path)[0] + '.txt', 'w') as file:
             for k, v in to_save.items():
@@ -605,8 +620,8 @@ class Microscope:
                 # -> enough precision and sets f_mm=132.5 for ri=1.51 (legal)
                 if self.zoom_lens_f_mm > 150:
                     self.zoom_lens_f_mm = 150 # legalize ri 1.33 to exactly 4/3
-                M2 = 5 / self.zoom_lens_f_mm
-                self.MRR = M1 * Mscan * M2; self.Mtot = self.MRR * M3;
+                self.M2 = 5 / self.zoom_lens_f_mm
+                self.MRR = M1 * Mscan * self.M2; self.Mtot = self.MRR * M3;
                 self.sample_px_um = camera_px_um / self.Mtot
                 # update voxel_aspect_ratio/scan_range_um dependents
                 self.scan_step_size_px, self.slices_per_volume = (
@@ -614,6 +629,10 @@ class Microscope:
                         self.sample_px_um,
                         self.voxel_aspect_ratio,
                         self.scan_range_um))
+                self.scan_step_size_um = calculate_scan_step_size_um(
+                    self.sample_px_um, self.scan_step_size_px)
+                self.voxel_aspect_ratio = calculate_voxel_aspect_ratio(
+                    self.scan_step_size_px)
                 self.scan_range_um = calculate_scan_range_um(
                     self.sample_px_um,
                     self.scan_step_size_px,
@@ -750,6 +769,7 @@ class Microscope:
                     args=(filename,
                           folder_name,
                           description,
+                          display,
                           preview_only)).start()
             # We have custody of the camera so attribute access is safe:
             vo   = self.volumes_per_buffer
