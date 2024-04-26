@@ -559,21 +559,20 @@ class GuiMicroscope:
         z_stage_popup.withdraw()
         z_stage_frame = tk.LabelFrame(z_stage_popup, text='Z STAGE', bd=6)
         z_stage_frame.grid(padx=10, pady=10)
+        self.Z_Stage_moving = tk.BooleanVar()
         # get position command:
         def _get_position():
-            self.Z_stage_mm = (
-                self.scope.Z_stage.stage1.get_position_mm())
+            self.Z_stage_mm = self.scope.Z_stage.stage1.get_position_mm()
             return None
         # stop command:
         def _stop():
-            self.scope.Z_stage.stop(mode='abrupt')
-            _get_position()
-            if self.running_scout_mode.get():
-                self._snap_and_display()
+            self.scope.Z_stage.stop(mode='abrupt') # updates '.position_mm'
+            self.Z_stage_mm = self.scope.Z_stage.stage1.position_mm
+            self.Z_Stage_moving.set(0)
             return None
         # up:
         def _move_up():
-            _get_position()
+            self.Z_Stage_moving.set(1)
             self.scope.Z_stage.move_mm(
                 limits_mm[0], relative=False, block=False)
             return None
@@ -601,7 +600,7 @@ class GuiMicroscope:
         move_fast_checkbox.grid(row=1, padx=10, pady=10)
         # down:
         def _move_down():
-            _get_position()
+            self.Z_Stage_moving.set(1)
             self.scope.Z_stage.move_mm(
                 limits_mm[1], relative=False, block=False)
             return None
@@ -619,11 +618,12 @@ class GuiMicroscope:
             if edge_limits_mm[0] <= self.Z_stage_mm <= edge_limits_mm[1]:
                 _get_position()
             position_textbox.textbox.delete('1.0', 'end')
-            position_textbox.textbox.insert(
-                '1.0', 'Z=%0.3f'%self.Z_stage_mm)
-            wait_ms = 33
+            position_textbox.textbox.insert('1.0', 'Z=%0.3f'%self.Z_stage_mm)
+            if self.Z_Stage_moving.get():
+                if not self.last_acquire_task.is_alive():
+                    self._snap_and_display()
             if run_update_position.get():
-                self.root.after(wait_ms, _run_update_position)
+                self.root.after(self.gui_delay_ms, _run_update_position)
             return None
         position_textbox = tkcw.Textbox(
             z_stage_frame, label='position (mm)', height=1, width=20)
