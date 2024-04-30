@@ -94,7 +94,8 @@ class GuiMicroscope:
                 # calculate voltages:
                 self.buffer_time_s.set(self.scope.buffer_time_s)
                 self.volumes_per_s.set(self.scope.volumes_per_s)
-                # check joystick:
+                # check autofocus and joystick:
+                self._check_autofocus()
                 self._check_joystick()
                 self.root.after(self.gui_delay_ms, _run_check_microscope)
                 return None
@@ -544,9 +545,213 @@ class GuiMicroscope:
         self.last_acquire_task = self.scope.acquire()
         return None
 
+    def init_focus_piezo(self):
+        self.focus_piezo_frame = tk.LabelFrame(
+            self.root, text='FOCUS PIEZO', bd=6)
+        self.focus_piezo_frame.grid(
+            row=1, column=2, rowspan=4, padx=10, pady=10, sticky='n')
+        frame_tip = Hovertip(
+            self.focus_piezo_frame,
+            "The 'FOCUS PIEZO' is a (fast) fine focus device for precisley\n" +
+            "adjusting the focus of the primary objective over a short\n" +
+            "range.")
+        min_um, max_um = 0, min(ht_sols.objective1_options['WD_um'])
+        small_move_um, large_move_um = 1, 5
+        center_um = int(round((max_um - min_um) / 2))
+        # slider:
+        self.focus_piezo_z_um = tkcw.CheckboxSliderSpinbox(
+            self.focus_piezo_frame,
+            label='position (um)',
+            orient='vertical',
+            checkbox_enabled=False,
+            slider_fast_update=True,
+            slider_length=300,
+            tickinterval=9,
+            min_value=min_um,
+            max_value=max_um,
+            rowspan=5,
+            width=5)
+        def _move():
+            self.scope.apply_settings(
+                focus_piezo_z_um=(self.focus_piezo_z_um.value.get(),
+                                  'absolute'))
+            if self.running_scout_mode.get():
+                self._snap_and_display()
+            return None
+        self.focus_piezo_z_um.value.trace_add(
+            'write',
+            lambda var, index, mode: _move())
+        def _update_position(how):
+            # check current position:
+            z_um = self.focus_piezo_z_um.value.get()
+            # check which direction:
+            if how == 'large_up':     z_um -= large_move_um
+            if how == 'small_up':     z_um -= small_move_um
+            if how == 'center':       z_um  = center_um
+            if how == 'small_down':   z_um += small_move_um
+            if how == 'large_down':   z_um += large_move_um
+            # update:
+            self.focus_piezo_z_um.update_and_validate(z_um)
+            return None
+        button_width, button_height = 8, 2
+        # large up button:
+        button_large_move_up = tk.Button(
+            self.focus_piezo_frame,
+            text="+ %ium"%large_move_um,
+            command=lambda d='large_up': _update_position(d),
+            width=button_width,
+            height=button_height)
+        button_large_move_up.grid(row=0, column=1, padx=10, pady=10)
+        # small up button:
+        button_small_move_up = tk.Button(
+            self.focus_piezo_frame,
+            text="+ %ium"%small_move_um,
+            command=lambda d='small_up': _update_position(d),
+            width=button_width,
+            height=button_height)
+        button_small_move_up.grid(row=1, column=1, sticky='s')
+        # center button:
+        button_center_move = tk.Button(
+            self.focus_piezo_frame,
+            text="center",
+            command=lambda d='center': _update_position(d),
+            width=button_width,
+            height=button_height)
+        button_center_move.grid(row=2, column=1, padx=5, pady=5)
+        # small down button:
+        button_small_move_down = tk.Button(
+            self.focus_piezo_frame,
+            text="- %ium"%small_move_um,
+            command=lambda d='small_down': _update_position(d),
+            width=button_width,
+            height=button_height)
+        button_small_move_down.grid(row=3, column=1, sticky='n')
+        # large down button:
+        button_large_move_down = tk.Button(
+            self.focus_piezo_frame,
+            text="- %ium"%large_move_um,
+            command=lambda d='large_down': _update_position(d),
+            width=button_width,
+            height=button_height)
+        button_large_move_down.grid(row=4, column=1, padx=10, pady=10)
+        return None
+
+    def init_autofocus(self):
+        frame = tk.LabelFrame(self.root, text='AUTOFOCUS', bd=6)
+        frame.grid(row=1, column=3, padx=10, pady=10, sticky='ne')
+        spinbox_width = 20
+        # sample flag:
+        self.autofocus_sample_flag = tk.BooleanVar()
+        autofocus_sample_flag_textbox = tkcw.Textbox(
+            frame,
+            label='Sample flag',
+            default_text='None',
+            row=0,
+            width=spinbox_width,
+            height=1)
+        autofocus_sample_flag_textbox.textbox.tag_add('color', '1.0', 'end')
+        def _update_autofocus_sample_flag():
+            autofocus_sample_flag_textbox.textbox.delete('1.0', 'end')
+            text, bg = 'False', 'white'
+            if self.autofocus_sample_flag.get():
+                text, bg = 'True', 'green'
+            autofocus_sample_flag_textbox.textbox.tag_config(
+                'color', background=bg)
+            autofocus_sample_flag_textbox.textbox.insert('1.0', text, 'color')
+            return None
+        self.autofocus_sample_flag.trace_add(
+            'write',
+            lambda var, index, mode: _update_autofocus_sample_flag())
+        autofocus_sample_flag_textbox_tip = Hovertip(
+            autofocus_sample_flag_textbox,
+            "Shows the status of the 'Sample flag' from the hardware\n" +
+            "autofocus.\n" +
+            "NOTE: the 'Sample flag' must be 'True' to lock the autofocus.")
+        # focus flag:
+        self.autofocus_focus_flag = tk.BooleanVar()
+        autofocus_focus_flag_textbox = tkcw.Textbox(
+            frame,
+            label='Focus flag',
+            default_text='None',
+            row=1,
+            width=spinbox_width,
+            height=1)
+        autofocus_focus_flag_textbox.textbox.tag_add('color', '1.0', 'end')
+        def _update_autofocus_focus_flag():
+            autofocus_focus_flag_textbox.textbox.delete('1.0', 'end')
+            text, bg = 'False', 'white'
+            if self.autofocus_focus_flag.get():
+                text, bg = 'True', 'green'
+            autofocus_focus_flag_textbox.textbox.tag_config(
+                'color', background=bg)
+            autofocus_focus_flag_textbox.textbox.insert('1.0', text, 'color')
+            return None
+        self.autofocus_focus_flag.trace_add(
+            'write',
+            lambda var, index, mode: _update_autofocus_focus_flag())
+        autofocus_focus_flag_textbox_tip = Hovertip(
+            autofocus_focus_flag_textbox,
+            "Shows the status of the 'Focus flag' from the hardware\n" +
+            "autofocus.\n" +
+            "NOTE: the 'focus flag' must be 'True' to lock the autofocus.")
+        def _autofocus():
+            if self.autofocus_enabled.get():
+                # hide z hardware:
+                self.Z_stage_frame.grid_remove()
+                self.focus_piezo_frame.grid_remove()
+                # attempt autofocus:
+                self.scope.apply_settings(autofocus_enabled=True).get_result()
+                if not self.scope.autofocus_enabled: # autofocus failed
+                    def _cancel():                        
+                        # show z hardware:
+                        self.Z_stage_frame.grid()
+                        self.focus_piezo_frame.grid()
+                        # release button:
+                        self.autofocus_enabled.set(0)
+                    self.root.after(10 * self.gui_delay_ms, _cancel)
+            else:
+                self.scope.apply_settings(autofocus_enabled=False).get_result()
+                # update gui with any changes from autofocus:
+                self.focus_piezo_z_um.update_and_validate(
+                    int(round(self.scope.focus_piezo_z_um)))
+                # show z hardware:
+                self.Z_stage_frame.grid()
+                self.focus_piezo_frame.grid()
+            return None
+        self.autofocus_enabled = tk.BooleanVar()
+        autofocus_button = tk.Checkbutton(
+            frame,
+            text="Enable/Disable",
+            variable=self.autofocus_enabled,
+            command=_autofocus,
+            indicatoron=0,
+            width=25,
+            height=2)
+        autofocus_button.grid(row=2, column=0, padx=10, pady=10)
+        autofocus_button_tip = Hovertip(
+            autofocus_button,
+            "The 'AUTOFOCUS' will attempt to continously maintain a set\n" +
+            "distance between the primary objective and the sample. This\n" +
+            "distance (focus) can be adjusted by turning the 'knob' on the\n" +
+            "'PRIOR PureFocus850 controller'.\n" +
+            "NOTE: this typically only works if the sample is already\n " +
+            "'very close' to being in focus:\n " +
+            "-> It is NOT intented to find the sample or find focus.\n " +
+            "-> Do NOT press any of the buttons on the controller.\n ")
+        return None
+
+    def _check_autofocus(self):
+        self.autofocus_sample_flag.set(self.scope.autofocus.get_sample_flag())
+        self.autofocus_focus_flag.set(self.scope.autofocus.get_focus_flag())
+        if self.autofocus_enabled.get() and self.running_scout_mode.get():
+            offset = self.scope.autofocus.offset_lens_position
+            if offset != self.scope.autofocus._get_offset_lens_position():
+                self._snap_and_display()
+        return None
+
     def init_Z_stage(self):
         self.Z_stage_frame = tk.LabelFrame(self.root, text='Z STAGE', bd=6)
-        self.Z_stage_frame.grid(row=1, column=2, padx=10, pady=10, sticky='n')
+        self.Z_stage_frame.grid(row=5, column=2, padx=10, pady=10, sticky='n')
         button_width, button_height = 25, 2
         limits_mm = (0, 30)     # range (adjust as needed)
         limits_mmps = (0.2, 1)  # velocity (adjust as needed)
@@ -675,144 +880,6 @@ class GuiMicroscope:
             "the sample over a potentially large range (some mm) to\n" +
             "approximately set the focus at the primary objective (±10um).\n" +
             "NOTE: THIS CAN CRUSH THE OBJECTIVE AND SAMPLE!")
-        return None
-
-    def init_focus_piezo(self):
-        self.focus_piezo_frame = tk.LabelFrame(
-            self.root, text='FOCUS PIEZO', bd=6)
-        self.focus_piezo_frame.grid(
-            row=2, column=2, rowspan=4, padx=10, pady=10, sticky='n')
-        frame_tip = Hovertip(
-            self.focus_piezo_frame,
-            "The 'FOCUS PIEZO' is a (fast) fine focus device for precisley\n" +
-            "adjusting the focus of the primary objective over a short\n" +
-            "range.")
-        min_um, max_um = 0, min(ht_sols.objective1_options['WD_um'])
-        small_move_um, large_move_um = 1, 5
-        center_um = int(round((max_um - min_um) / 2))
-        # slider:
-        self.focus_piezo_z_um = tkcw.CheckboxSliderSpinbox(
-            self.focus_piezo_frame,
-            label='position (um)',
-            orient='vertical',
-            checkbox_enabled=False,
-            slider_fast_update=True,
-            slider_length=300,
-            tickinterval=9,
-            min_value=min_um,
-            max_value=max_um,
-            rowspan=5,
-            width=5)
-        def _move():
-            self.scope.apply_settings(
-                focus_piezo_z_um=(self.focus_piezo_z_um.value.get(),
-                                  'absolute'))
-            if self.running_scout_mode.get():
-                self._snap_and_display()
-            return None
-        self.focus_piezo_z_um.value.trace_add(
-            'write',
-            lambda var, index, mode: _move())
-        def _update_position(how):
-            # check current position:
-            z_um = self.focus_piezo_z_um.value.get()
-            # check which direction:
-            if how == 'large_up':     z_um -= large_move_um
-            if how == 'small_up':     z_um -= small_move_um
-            if how == 'center':       z_um  = center_um
-            if how == 'small_down':   z_um += small_move_um
-            if how == 'large_down':   z_um += large_move_um
-            # update:
-            self.focus_piezo_z_um.update_and_validate(z_um)
-            return None
-        button_width, button_height = 8, 2
-        # large up button:
-        button_large_move_up = tk.Button(
-            self.focus_piezo_frame,
-            text="+ %ium"%large_move_um,
-            command=lambda d='large_up': _update_position(d),
-            width=button_width,
-            height=button_height)
-        button_large_move_up.grid(row=0, column=1, padx=10, pady=10)
-        # small up button:
-        button_small_move_up = tk.Button(
-            self.focus_piezo_frame,
-            text="+ %ium"%small_move_um,
-            command=lambda d='small_up': _update_position(d),
-            width=button_width,
-            height=button_height)
-        button_small_move_up.grid(row=1, column=1, sticky='s')
-        # center button:
-        button_center_move = tk.Button(
-            self.focus_piezo_frame,
-            text="center",
-            command=lambda d='center': _update_position(d),
-            width=button_width,
-            height=button_height)
-        button_center_move.grid(row=2, column=1, padx=5, pady=5)
-        # small down button:
-        button_small_move_down = tk.Button(
-            self.focus_piezo_frame,
-            text="- %ium"%small_move_um,
-            command=lambda d='small_down': _update_position(d),
-            width=button_width,
-            height=button_height)
-        button_small_move_down.grid(row=3, column=1, sticky='n')
-        # large down button:
-        button_large_move_down = tk.Button(
-            self.focus_piezo_frame,
-            text="- %ium"%large_move_um,
-            command=lambda d='large_down': _update_position(d),
-            width=button_width,
-            height=button_height)
-        button_large_move_down.grid(row=4, column=1, padx=10, pady=10)
-        return None
-
-    def init_autofocus(self):
-        frame = tk.LabelFrame(self.root, text='AUTOFOCUS', bd=6)
-        frame.grid(row=2, column=3, padx=10, pady=10, sticky='ne')
-        frame_tip = Hovertip(
-            frame,
-            "The 'AUTOFOCUS' will attempt to continously maintain a set\n" +
-            "distance between the primary objective and the sample. This\n" +
-            "distance (focus) can be adjusted by turning the 'knob' on the\n" +
-            "'PRIOR PureFocus850 controller'.\n" +
-            "NOTE: this typically only works if the sample is already\n " +
-            "'very close' to being in focus:\n " +
-            "-> It is NOT intented to find the sample or find focus.\n " +
-            "-> Do NOT press any of the buttons on the controller.\n ")
-        def _autofocus():
-            if self.autofocus_enabled.get():
-                self.scope.apply_settings(autofocus_enabled=True)
-                # hide z hardware:
-                self.Z_stage_frame.grid_remove()
-                self.focus_piezo_frame.grid_remove()
-            else:
-                self.scope.apply_settings(autofocus_enabled=False).get_result()
-                # update gui with any changes from autofocus:
-                self.focus_piezo_z_um.update_and_validate(
-                    int(round(self.scope.focus_piezo_z_um)))
-                # show z hardware:
-                self.Z_stage_frame.grid()
-                self.focus_piezo_frame.grid()
-            return None
-        self.autofocus_enabled = tk.BooleanVar()
-        autofocus_button = tk.Checkbutton(
-            frame,
-            text="Enable/Disable",
-            variable=self.autofocus_enabled,
-            command=_autofocus,
-            indicatoron=0,
-            width=25,
-            height=2)
-        autofocus_button.grid(row=0, column=0, padx=10, pady=10)
-        return None
-
-    def _check_autofocus(self):
-        if self.autofocus_enabled.get() and self.running_scout_mode.get():
-            offset = self.scope.autofocus.offset_lens_position
-            if offset != self.scope.autofocus._get_offset_lens_position():
-                self._snap_and_display()
         return None
 
     def init_XY_stage(self):
