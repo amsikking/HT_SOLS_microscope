@@ -2260,8 +2260,9 @@ class GuiMicroscope:
             self.scout_mode_status.set(self.running_scout_mode.get())
             self.running_scout_mode.set(0) # avoids snap from focus piezo                
             # move:
-            self.focus_piezo_z_um.update_and_validate(
-                self.focus_piezo_position_list[p - 1])
+            if not self.autofocus_enabled.get():
+                self.focus_piezo_z_um.update_and_validate(
+                    self.focus_piezo_position_list[p - 1])
             self._update_XY_stage_position(
                 self.XY_stage_position_list[p - 1])
             # update gui and snap:
@@ -2492,8 +2493,10 @@ class GuiMicroscope:
                 else:
                     if self.acquire_position == 0:
                         self.loop_t0_s = time.perf_counter()
-                    self.focus_piezo_z_um.update_and_validate(
-                        self.focus_piezo_position_list[self.acquire_position])
+                    if not self.autofocus_enabled.get():
+                        self.focus_piezo_z_um.update_and_validate(
+                            self.focus_piezo_position_list[
+                                self.acquire_position])
                     self._update_XY_stage_position(
                         self.XY_stage_position_list[self.acquire_position])
                     self.current_position.update_and_validate(
