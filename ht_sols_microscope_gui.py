@@ -34,7 +34,7 @@ class GuiMicroscope:
         self.init_lightsheet()
         self.init_camera()
         self.init_galvo()
-        self.init_sample()
+        self.init_sample_ri()
         self.init_focus_piezo()
         self.init_Z_stage()
         self.init_XY_stage()
@@ -554,7 +554,7 @@ class GuiMicroscope:
         self.last_acquire_task = self.scope.acquire()
         return None
 
-    def init_sample(self):
+    def init_sample_ri(self):
         frame = tk.LabelFrame(self.root, text='SAMPLE', bd=6)
         frame.grid(row=9, column=1, padx=10, pady=10, sticky='s')
         slider_length = 365 # match to camera
@@ -574,10 +574,14 @@ class GuiMicroscope:
             integers_only=False,            
             row=0,
             width=5)
+        def _update_sample_ri():
+            self.scope.apply_settings(sample_ri=self.sample_ri.value.get())
+            if self.running_scout_mode.get():
+                self._snap_and_display()
+            return None        
         self.sample_ri.value.trace_add(
             'write',
-            lambda var, index, mode: self.scope.apply_settings(
-                sample_ri=self.sample_ri.value.get())) 
+            lambda var, index, mode: _update_sample_ri())
         sample_ri_tip = Hovertip(
             self.sample_ri,
             "The '~refractive index' setting adjusts the zoom lens in the\n" +
