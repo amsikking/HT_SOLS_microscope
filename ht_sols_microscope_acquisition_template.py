@@ -29,6 +29,7 @@ if __name__ == '__main__': # required block for sols_microscope
         focus_piezo_z_um=(0,'relative'),        # = don't move
         XY_stage_position_mm=(0,0,'relative'),  # = don't move
         sample_ri=1.33,                         # 1.33 -> 1.51 (watery to oily)
+        ls_angular_dither_v=0,                  # 0 -> 1 (good for ill_us > 1ms)
         ).get_result()
 
     # Get current XY position for moving back at the end of the script:
