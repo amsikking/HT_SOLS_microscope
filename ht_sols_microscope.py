@@ -341,6 +341,11 @@ class Microscope:
                           n2c[channel + '_TTL']] = 3
                     v[light_on_px:period_px - jitter_px,
                       n2c[channel + '_power']] = 4.5 * power / 100
+                    # light sheet dither:
+                    ad_v = self.ls_angular_dither_v
+                    ramp_px = period_px - jitter_px - light_on_px
+                    v[light_on_px:period_px - jitter_px,
+                      n2c['LSx_IMG']] = np.linspace(-ad_v, ad_v, ramp_px)
                     voltages.append(v)
         voltages = np.concatenate(voltages, axis=0)
         # Timing attributes:
@@ -409,6 +414,7 @@ class Microscope:
             'focus_piezo_z_um':self.focus_piezo_z_um,
             'XY_stage_position_mm':self.XY_stage_position_mm,
             'sample_ri':self.sample_ri,
+            'ls_angular_dither_v':self.ls_angular_dither_v,
             'max_bytes_per_buffer':self.max_bytes_per_buffer,
             'max_data_buffers':self.max_data_buffers,
             'max_preview_buffers':self.max_preview_buffers,
@@ -596,6 +602,7 @@ class Microscope:
         focus_piezo_z_um=None,      # (Float, "relative" or "absolute")
         XY_stage_position_mm=None,  # (Float, Float, "relative" or "absolute")
         sample_ri=None,             # Float
+        ls_angular_dither_v=None,   # Float
         max_bytes_per_buffer=None,  # Int
         max_data_buffers=None,      # Int
         max_preview_buffers=None,   # Int
@@ -724,7 +731,8 @@ class Microscope:
                 voxel_aspect_ratio is not None or
                 scan_range_um is not None or
                 volumes_per_buffer is not None or
-                sample_ri is not None):
+                sample_ri is not None or
+                ls_angular_dither_v is not None):
                 for channel in self.channels_per_slice:
                     assert channel in self.illumination_sources
                 assert len(self.power_per_channel) == (
@@ -732,6 +740,7 @@ class Microscope:
                 for power in self.power_per_channel: assert 0 <= power <= 100
                 assert type(self.volumes_per_buffer) is int
                 assert self.volumes_per_buffer > 0
+                assert 0 <= self.ls_angular_dither_v <= 1 # optical limit
                 self.camera.num_images = self.images # update attribute
                 self.voltages = self._calculate_voltages()
                 write_voltages_thread = ct.ResultThread(
@@ -1254,6 +1263,7 @@ if __name__ == '__main__':
         focus_piezo_z_um=(0,'relative'),
         XY_stage_position_mm=(0,0,'relative'),
         sample_ri=1.33,
+        ls_angular_dither_v=0,
         ).get_result()
 
     # Run snoutfocus and acquire:
