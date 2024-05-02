@@ -31,13 +31,14 @@ class GuiMicroscope:
         self.init_laser_box()
         self.init_dichroic_mirror()
         self.init_filter_wheel()
+        self.init_lightsheet()
         self.init_camera()
-        self.init_sample()
         self.init_galvo()
-        self.init_Z_stage()
+        self.init_sample()
         self.init_focus_piezo()
-        self.init_autofocus()
+        self.init_Z_stage()
         self.init_XY_stage()
+        self.init_autofocus()
         # load microscope GUI's and quit:
         self.init_grid_navigator()  # navigates an XY grid of points
         self.init_tile_navigator()  # generates and navigates XY tiles
@@ -71,7 +72,8 @@ class GuiMicroscope:
                 autofocus_enabled    = False,
                 focus_piezo_z_um     = (0, 'relative'),
                 XY_stage_position_mm = (0, 0, 'relative'),
-                sample_ri            = self.sample_ri.value.get()
+                sample_ri            = self.sample_ri.value.get(),
+                ls_angular_dither_v  = self.ls_angular_dither.value.get(),
                 ).get_result() # finish
             # get XYZ direct from hardware and update gui to aviod motion:
             self.focus_piezo_z_um.update_and_validate(
@@ -226,7 +228,7 @@ class GuiMicroscope:
 
     def init_dichroic_mirror(self):
         frame = tk.LabelFrame(self.root, text='DICHROIC MIRROR', bd=6)
-        frame.grid(row=6, column=0, padx=10, pady=10, sticky='n')
+        frame.grid(row=7, column=0, padx=10, pady=10, sticky='n')
         frame_tip = Hovertip(
             frame,
             "The 'DICHROIC MIRROR' couples the LASER light into the\n" +
@@ -247,7 +249,7 @@ class GuiMicroscope:
 
     def init_filter_wheel(self):
         frame = tk.LabelFrame(self.root, text='FILTER WHEEL', bd=6)
-        frame.grid(row=7, column=0, padx=10, pady=10, sticky='n')
+        frame.grid(row=8, column=0, padx=10, pady=10, sticky='n')
         frame_tip = Hovertip(
             frame,
             "The 'FILTER WHEEL' has a choice of 'emission filters'\n" +
@@ -268,6 +270,77 @@ class GuiMicroscope:
             'write',
             lambda var, index, mode: self.scope.apply_settings(
                 emission_filter=self.emission_filter.get()))
+        return None
+
+    def init_lightsheet(self):
+        frame = tk.LabelFrame(self.root, text='LIGHT-SHEET', bd=6)
+        frame.grid(row=9, column=0, padx=10, pady=10, sticky='n')
+        button_width, button_height = 10, 2
+        # dither slider:
+        ls_angular_dither_min = 0
+        ls_angular_dither_max = 1
+        ls_angular_dither_some = 0.5
+        self.ls_angular_dither = tkcw.CheckboxSliderSpinbox(
+            frame,
+            label='angular dither (V)',
+            checkbox_enabled=False,
+            slider_fast_update=True,
+            slider_length=290,
+            tickinterval=5,
+            min_value=ls_angular_dither_min,
+            max_value=ls_angular_dither_max,
+            default_value=ls_angular_dither_min,
+            increment=0.1,
+            integers_only=False,
+            row=0,
+            width=5)
+        def _update_dither():
+            self.scope.apply_settings(
+                ls_angular_dither_v=self.ls_angular_dither.value.get())
+            if self.running_scout_mode.get():
+                self._snap_and_display()
+            return None
+        self.ls_angular_dither.value.trace_add(
+            'write',
+            lambda var, index, mode: _update_dither())
+        ls_angular_dither_tip = Hovertip(
+            self.ls_angular_dither,
+            "The 'angular_dither' setting adjusts how much the light-sheet\n" +
+            "angle is dithered during an acquisition. This can help reduce\n" +
+            "''streaking' artefacts from the sample absorbing and/or\n" +
+            "scattering the light-sheet.\n" +
+            "NOTE: this may not help with very short exposure times if the\n" +
+            "galvo scanner cannot dither the light-sheet fast enough.")
+        # min button:
+        button_ls_angular_dither_min = tk.Button(
+            frame,
+            text="none",
+            command=lambda: self.ls_angular_dither.update_and_validate(
+                ls_angular_dither_min),
+            width=button_width,
+            height=button_height)
+        button_ls_angular_dither_min.grid(
+            row=1, column=0, padx=10, pady=10, sticky='w')
+        # some button:
+        button_ls_angular_dither_some = tk.Button(
+            frame,
+            text="some",
+            command=lambda: self.ls_angular_dither.update_and_validate(
+                ls_angular_dither_some),
+            width=button_width,
+            height=button_height)
+        button_ls_angular_dither_some.grid(
+            row=1, column=0, padx=5, pady=5)
+        # max button:
+        button_ls_angular_dither_max = tk.Button(
+            frame,
+            text="max",
+            command=lambda: self.ls_angular_dither.update_and_validate(
+                ls_angular_dither_max),
+            width=button_width,
+            height=button_height)
+        button_ls_angular_dither_max.grid(
+            row=1, column=0, padx=10, pady=10, sticky='e')
         return None
 
     def init_camera(self):
@@ -353,72 +426,9 @@ class GuiMicroscope:
             fill='yellow')
         return None
 
-    def init_sample(self):
-        frame = tk.LabelFrame(self.root, text='SAMPLE', bd=6)
-        frame.grid(row=5, column=1, rowspan=1, padx=10, pady=10, sticky='s')
-        slider_length = 365 # match to camera
-        button_width, button_height = 10, 2
-        # ri slider:
-        sample_ri_min, sample_ri_max, sample_ri_center = 1.33, 1.51, 1.38
-        self.sample_ri = tkcw.CheckboxSliderSpinbox(
-            frame,
-            label='~refractive index',
-            checkbox_enabled=False,
-            slider_length=slider_length,
-            tickinterval=6,
-            min_value=sample_ri_min,
-            max_value=sample_ri_max,
-            default_value=sample_ri_center,
-            increment=0.01,
-            integers_only=False,            
-            row=0,
-            width=5)
-        self.sample_ri.value.trace_add(
-            'write',
-            lambda var, index, mode: self.scope.apply_settings(
-                sample_ri=self.sample_ri.value.get())) 
-        sample_ri_tip = Hovertip(
-            self.sample_ri,
-            "The '~refractive index' setting adjusts the zoom lens in the\n" +
-            "microscope to set the correct remote refocus magnification\n" +
-            "for best 3D imaging peformance.\n" +
-            "NOTE: search for 'AIRR microscopy' to understand more \n" +
-            "(doi:10.5281/zenodo.7425649).")
-        # ri min button:
-        button_sample_ri_min = tk.Button(
-            frame,
-            text="watery",
-            command=lambda: self.sample_ri.update_and_validate(
-                sample_ri_min),
-            width=button_width,
-            height=button_height)
-        button_sample_ri_min.grid(
-            row=1, column=0, padx=10, pady=10, sticky='w')
-        # ri center button:
-        button_sample_ri_center = tk.Button(
-            frame,
-            text="live bio?",
-            command=lambda: self.sample_ri.update_and_validate(
-                sample_ri_center),
-            width=button_width,
-            height=button_height)
-        button_sample_ri_center.grid(
-            row=1, column=0, padx=5, pady=5)
-        # ri max button:
-        button_sample_ri_max = tk.Button(
-            frame,
-            text="oily",
-            command=lambda: self.sample_ri.update_and_validate(
-                sample_ri_max),
-            width=button_width,
-            height=button_height)
-        button_sample_ri_max.grid(
-            row=1, column=0, padx=10, pady=10, sticky='e')
-        return None
-
     def init_galvo(self):
         frame = tk.LabelFrame(self.root, text='GALVO', bd=6)
-        frame.grid(row=6, column=1, rowspan=2, padx=10, pady=10, sticky='n')
+        frame.grid(row=7, column=1, rowspan=2, padx=10, pady=10, sticky='n')
         slider_length = 365 # match to camera
         button_width, button_height = 10, 2
         # scan slider:
@@ -544,6 +554,69 @@ class GuiMicroscope:
         self.last_acquire_task = self.scope.acquire()
         return None
 
+    def init_sample(self):
+        frame = tk.LabelFrame(self.root, text='SAMPLE', bd=6)
+        frame.grid(row=9, column=1, padx=10, pady=10, sticky='s')
+        slider_length = 365 # match to camera
+        button_width, button_height = 10, 2
+        # ri slider:
+        sample_ri_min, sample_ri_max, sample_ri_center = 1.33, 1.51, 1.38
+        self.sample_ri = tkcw.CheckboxSliderSpinbox(
+            frame,
+            label='~refractive index',
+            checkbox_enabled=False,
+            slider_length=slider_length,
+            tickinterval=6,
+            min_value=sample_ri_min,
+            max_value=sample_ri_max,
+            default_value=sample_ri_center,
+            increment=0.01,
+            integers_only=False,            
+            row=0,
+            width=5)
+        self.sample_ri.value.trace_add(
+            'write',
+            lambda var, index, mode: self.scope.apply_settings(
+                sample_ri=self.sample_ri.value.get())) 
+        sample_ri_tip = Hovertip(
+            self.sample_ri,
+            "The '~refractive index' setting adjusts the zoom lens in the\n" +
+            "microscope to set the correct remote refocus magnification\n" +
+            "for best 3D imaging peformance.\n" +
+            "NOTE: search for 'AIRR microscopy' to understand more \n" +
+            "(doi:10.5281/zenodo.7425649).")
+        # ri min button:
+        button_sample_ri_min = tk.Button(
+            frame,
+            text="watery",
+            command=lambda: self.sample_ri.update_and_validate(
+                sample_ri_min),
+            width=button_width,
+            height=button_height)
+        button_sample_ri_min.grid(
+            row=1, column=0, padx=10, pady=10, sticky='w')
+        # ri center button:
+        button_sample_ri_center = tk.Button(
+            frame,
+            text="live bio?",
+            command=lambda: self.sample_ri.update_and_validate(
+                sample_ri_center),
+            width=button_width,
+            height=button_height)
+        button_sample_ri_center.grid(
+            row=1, column=0, padx=5, pady=5)
+        # ri max button:
+        button_sample_ri_max = tk.Button(
+            frame,
+            text="oily",
+            command=lambda: self.sample_ri.update_and_validate(
+                sample_ri_max),
+            width=button_width,
+            height=button_height)
+        button_sample_ri_max.grid(
+            row=1, column=0, padx=10, pady=10, sticky='e')
+        return None
+
     def init_focus_piezo(self):
         self.focus_piezo_frame = tk.LabelFrame(
             self.root, text='FOCUS PIEZO', bd=6)
@@ -564,7 +637,7 @@ class GuiMicroscope:
             orient='vertical',
             checkbox_enabled=False,
             slider_fast_update=True,
-            slider_length=300,
+            slider_length=390,
             tickinterval=9,
             min_value=min_um,
             max_value=max_um,
@@ -637,7 +710,7 @@ class GuiMicroscope:
 
     def init_autofocus(self):
         frame = tk.LabelFrame(self.root, text='AUTOFOCUS', bd=6)
-        frame.grid(row=1, column=3, padx=10, pady=10, sticky='ne')
+        frame.grid(row=1, column=3, rowspan=2, padx=10, pady=10, sticky='ne')
         spinbox_width = 20
         # sample flag:
         self.autofocus_sample_flag = tk.BooleanVar()
@@ -752,8 +825,8 @@ class GuiMicroscope:
 
     def init_Z_stage(self):
         self.Z_stage_frame = tk.LabelFrame(self.root, text='Z STAGE', bd=6)
-        self.Z_stage_frame.grid(row=5, column=2, padx=10, pady=10, sticky='n')
-        button_width, button_height = 25, 2
+        self.Z_stage_frame.grid(row=5, column=2, padx=10, pady=10, sticky='s')
+        button_width, button_height = 24, 2
         limits_mm = (0, 30)     # range (adjust as needed)
         limits_mmps = (0.2, 1)  # velocity (adjust as needed)
         edge_limits_mm = (limits_mm[0] + 0.1, limits_mm[1] - 0.1)
@@ -885,7 +958,7 @@ class GuiMicroscope:
 
     def init_XY_stage(self):
         frame = tk.LabelFrame(self.root, text='XY STAGE', bd=6)
-        frame.grid(row=6, column=2, rowspan=2, columnspan=2,
+        frame.grid(row=7, column=2, rowspan=2, columnspan=2,
                    padx=10, pady=10, sticky='n')
         frame_tip = Hovertip(
             frame,
@@ -1521,7 +1594,7 @@ class GuiMicroscope:
 
     def init_tile_navigator(self):
         frame = tk.LabelFrame(self.root, text='TILE NAVIGATOR', bd=6)
-        frame.grid(row=6, column=4, rowspan=2, padx=10, pady=10, sticky='n')
+        frame.grid(row=7, column=4, rowspan=2, padx=10, pady=10, sticky='n')
         button_width, button_height = 25, 2
         spinbox_width = 20
         # tile array width:
@@ -1910,7 +1983,7 @@ class GuiMicroscope:
 
     def init_settings_output(self):
         frame = tk.LabelFrame(self.root, text='SETTINGS OUTPUT', bd=6)
-        frame.grid(row=6, column=5, rowspan=3, padx=10, pady=10, sticky='n')
+        frame.grid(row=7, column=5, rowspan=3, padx=10, pady=10, sticky='n')
         button_width, button_height = 25, 2
         spinbox_width = 20
         # volumes per second textbox:
@@ -2369,7 +2442,7 @@ class GuiMicroscope:
     def init_acquire(self):
         frame = tk.LabelFrame(
             self.root, text='ACQUIRE', font=('Segoe UI', '10', 'bold'), bd=6)
-        frame.grid(row=6, column=6, rowspan=2, padx=10, pady=10, sticky='n')
+        frame.grid(row=7, column=6, rowspan=2, padx=10, pady=10, sticky='n')
         frame.bind('<Enter>', lambda event: frame.focus_set()) # force update
         button_width, button_height = 25, 2
         bold_width_adjust = -3
@@ -2568,7 +2641,7 @@ class GuiMicroscope:
     def init_exit(self):
         frame = tk.LabelFrame(
             self.root, text='EXIT', font=('Segoe UI', '10', 'bold'), bd=6)
-        frame.grid(row=8, column=6, padx=10, pady=10, sticky='n')
+        frame.grid(row=9, column=6, padx=10, pady=10, sticky='n')
         def _exit():
             if self.init_microscope: self.scope.close()
             self.root.quit()
