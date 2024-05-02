@@ -117,9 +117,12 @@ class Microscope:
         self.autofocus_sample_flag = self.autofocus.get_sample_flag()
         self.autofocus_focus_flag  = self.autofocus.get_focus_flag()
         # set defaults:
-        self.dichroic_mirror = tuple(dichroic_mirror_options.keys())[0]
+        # -> apply_settings args
         self.timestamp_mode = "binary+ASCII"
         self.camera._set_timestamp_mode(self.timestamp_mode) # default on
+        self.autofocus_enabled = False
+        self.focus_piezo_z_um = self.focus_piezo.z
+        self.XY_stage_position_mm = self.XY_stage.x, self.XY_stage.y
         self.max_bytes_per_buffer = (2**31) # legal tiff
         self.max_data_buffers = 4 # camera, preview, display, filesave
         self.max_preview_buffers = self.max_data_buffers
@@ -127,6 +130,8 @@ class Microscope:
         # The pco_edge42_cl has unreliable pixel rows at the top and bottom,
         # so for clean previews it's best to remove them:
         self.preview_crop_px = 3 # crop top and bottom pixel rows for previews
+        # -> additional
+        self.dichroic_mirror = tuple(dichroic_mirror_options.keys())[0]
         self.num_active_data_buffers = 0
         self.num_active_preview_buffers = 0
         self._settings_applied = False
@@ -1259,7 +1264,7 @@ if __name__ == '__main__':
         voxel_aspect_ratio=2,
         scan_range_um=50,
         volumes_per_buffer=1,
-        autofocus_enabled=False,
+##        autofocus_enabled=True, # optional test
         focus_piezo_z_um=(0,'relative'),
         XY_stage_position_mm=(0,0,'relative'),
         sample_ri=1.33,
