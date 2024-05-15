@@ -352,8 +352,9 @@ class Microscope:
                           n2c[channel + '_TTL']] = 3
                     v[light_on_px:period_px - jitter_px,
                       n2c[channel + '_power']] = 4.5 * power / 100
-                    # light sheet dither:
-                    ad_v = self.ls_angular_dither_v
+                    # light sheet:
+                    v[:, n2c['LSx_BFP']] = self.ls_focus_adjust_v # focus adj.
+                    ad_v = self.ls_angular_dither_v               # ang. dither 
                     ramp_px = period_px - jitter_px - light_on_px
                     v[light_on_px:period_px - jitter_px,
                       n2c['LSx_IMG']] = np.linspace(-ad_v, ad_v, ramp_px)
@@ -425,6 +426,7 @@ class Microscope:
             'focus_piezo_z_um':self.focus_piezo_z_um,
             'XY_stage_position_mm':self.XY_stage_position_mm,
             'sample_ri':self.sample_ri,
+            'ls_focus_adjust_v':self.ls_focus_adjust_v,
             'ls_angular_dither_v':self.ls_angular_dither_v,
             'camera_preframes':self.camera_preframes,
             'max_bytes_per_buffer':self.max_bytes_per_buffer,
@@ -614,6 +616,7 @@ class Microscope:
         focus_piezo_z_um=None,      # (Float, "relative" or "absolute")
         XY_stage_position_mm=None,  # (Float, Float, "relative" or "absolute")
         sample_ri=None,             # Float
+        ls_focus_adjust_v=None,     # Float
         ls_angular_dither_v=None,   # Float
         camera_preframes=None,      # Int
         max_bytes_per_buffer=None,  # Int
@@ -745,6 +748,7 @@ class Microscope:
                 scan_range_um is not None or
                 volumes_per_buffer is not None or
                 sample_ri is not None or
+                ls_focus_adjust_v is not None or
                 ls_angular_dither_v is not None or
                 camera_preframes is not None):
                 for channel in self.channels_per_slice:
@@ -754,6 +758,7 @@ class Microscope:
                 for power in self.power_per_channel: assert 0 <= power <= 100
                 assert type(self.volumes_per_buffer) is int
                 assert self.volumes_per_buffer > 0
+                assert -0.1 <= self.ls_focus_adjust_v <= 0.1 # sensible limit
                 assert 0 <= self.ls_angular_dither_v <= 1 # optical limit
                 assert type(self.camera_preframes) is int
                 self.camera.num_images = ( # update attribute
@@ -1280,6 +1285,7 @@ if __name__ == '__main__':
         focus_piezo_z_um=(0,'relative'),
         XY_stage_position_mm=(0,0,'relative'),
         sample_ri=1.33,
+        ls_focus_adjust_v=0,
         ls_angular_dither_v=0,
         ).get_result()
 
