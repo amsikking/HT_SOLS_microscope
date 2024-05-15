@@ -120,7 +120,7 @@ class GuiMicroscope:
 
     def init_transmitted_light(self):
         frame = tk.LabelFrame(self.root, text='TRANSMITTED LIGHT', bd=6)
-        frame.grid(row=1, column=0, padx=10, pady=10, sticky='n')
+        frame.grid(row=1, column=0, padx=5, pady=5, sticky='n')
         frame_tip = Hovertip(
             frame,
             "The 'TRANSMITTED LIGHT' illuminates the sample from above.\n" +
@@ -141,7 +141,7 @@ class GuiMicroscope:
 
     def init_laser_box(self):
         frame = tk.LabelFrame(self.root, text='LASER BOX', bd=6)
-        frame.grid(row=2, column=0, rowspan=4, padx=10, pady=10, sticky='n')
+        frame.grid(row=2, column=0, rowspan=4, padx=5, pady=5, sticky='n')
         frame_tip = Hovertip(
             frame,
             "The 'LASER' illuminates the sample with a 'light-sheet'.\n" +
@@ -225,7 +225,7 @@ class GuiMicroscope:
 
     def init_dichroic_mirror(self):
         frame = tk.LabelFrame(self.root, text='DICHROIC MIRROR', bd=6)
-        frame.grid(row=7, column=0, padx=10, pady=10, sticky='n')
+        frame.grid(row=7, column=0, padx=5, pady=5, sticky='n')
         frame_tip = Hovertip(
             frame,
             "The 'DICHROIC MIRROR' couples the LASER light into the\n" +
@@ -246,7 +246,7 @@ class GuiMicroscope:
 
     def init_filter_wheel(self):
         frame = tk.LabelFrame(self.root, text='FILTER WHEEL', bd=6)
-        frame.grid(row=8, column=0, padx=10, pady=10, sticky='n')
+        frame.grid(row=8, column=0, padx=5, pady=5, sticky='s')
         frame_tip = Hovertip(
             frame,
             "The 'FILTER WHEEL' has a choice of 'emission filters'\n" +
@@ -271,8 +271,8 @@ class GuiMicroscope:
 
     def init_lightsheet(self):
         frame = tk.LabelFrame(self.root, text='LIGHT-SHEET', bd=6)
-        frame.grid(row=9, column=0, padx=10, pady=10, sticky='n')
-        button_width, button_height = 10, 2
+        frame.grid(row=9, column=0, padx=5, pady=5, sticky='n')
+        button_width, button_height = 10, 1
         # dither slider:
         ls_angular_dither_min = 0
         ls_angular_dither_max = 1
@@ -342,7 +342,7 @@ class GuiMicroscope:
 
     def init_camera(self):
         frame = tk.LabelFrame(self.root, text='CAMERA', bd=6)
-        frame.grid(row=1, column=1, rowspan=4, padx=10, pady=10, sticky='n')
+        frame.grid(row=1, column=1, rowspan=4, padx=5, pady=5, sticky='n')
         # illumination_time_us:
         self.illumination_time_us = tkcw.CheckboxSliderSpinbox(
             frame,
@@ -425,9 +425,9 @@ class GuiMicroscope:
 
     def init_galvo(self):
         frame = tk.LabelFrame(self.root, text='GALVO', bd=6)
-        frame.grid(row=7, column=1, rowspan=2, padx=10, pady=10, sticky='n')
+        frame.grid(row=7, column=1, rowspan=2, padx=5, pady=5, sticky='n')
         slider_length = 365 # match to camera
-        button_width, button_height = 10, 2
+        button_width, button_height = 10, 1
         # scan slider:
         scan_range_um_min, scan_range_um_max = 1, 250
         scan_range_um_scout = 50
@@ -553,9 +553,9 @@ class GuiMicroscope:
 
     def init_sample_ri(self):
         frame = tk.LabelFrame(self.root, text='SAMPLE', bd=6)
-        frame.grid(row=9, column=1, padx=10, pady=10, sticky='s')
+        frame.grid(row=9, column=1, padx=5, pady=5, sticky='n')
         slider_length = 365 # match to camera
-        button_width, button_height = 10, 2
+        button_width, button_height = 10, 1
         # ri slider:
         sample_ri_min, sample_ri_max, sample_ri_center = 1.33, 1.51, 1.38
         self.sample_ri = tkcw.CheckboxSliderSpinbox(
@@ -622,7 +622,7 @@ class GuiMicroscope:
         self.focus_piezo_frame = tk.LabelFrame(
             self.root, text='FOCUS PIEZO', bd=6)
         self.focus_piezo_frame.grid(
-            row=1, column=2, rowspan=4, padx=10, pady=10, sticky='n')
+            row=1, column=2, rowspan=3, padx=5, pady=5, sticky='n')
         frame_tip = Hovertip(
             self.focus_piezo_frame,
             "The 'FOCUS PIEZO' is a (fast) fine focus device for precisley\n" +
@@ -638,8 +638,8 @@ class GuiMicroscope:
             orient='vertical',
             checkbox_enabled=False,
             slider_fast_update=True,
-            slider_length=390,
-            tickinterval=9,
+            slider_length=245,
+            tickinterval=7,
             min_value=min_um,
             max_value=max_um,
             rowspan=5,
@@ -666,7 +666,7 @@ class GuiMicroscope:
             # update:
             self.focus_piezo_z_um.update_and_validate(z_um)
             return None
-        button_width, button_height = 8, 2
+        button_width, button_height = 8, 1
         # large up button:
         button_large_move_up = tk.Button(
             self.focus_piezo_frame,
@@ -711,7 +711,7 @@ class GuiMicroscope:
 
     def init_autofocus(self):
         frame = tk.LabelFrame(self.root, text='AUTOFOCUS', bd=6)
-        frame.grid(row=1, column=3, rowspan=2, padx=10, pady=10, sticky='ne')
+        frame.grid(row=1, column=3, rowspan=2, padx=5, pady=5, sticky='ne')
         spinbox_width = 20
         # sample flag:
         self.autofocus_sample_flag = tk.BooleanVar()
@@ -826,7 +826,7 @@ class GuiMicroscope:
 
     def init_Z_stage(self):
         self.Z_stage_frame = tk.LabelFrame(self.root, text='Z STAGE', bd=6)
-        self.Z_stage_frame.grid(row=5, column=2, padx=10, pady=10, sticky='s')
+        self.Z_stage_frame.grid(row=4, column=2, padx=5, pady=5, sticky='n')
         button_width, button_height = 24, 2
         limits_mm = (0, 30)     # range (adjust as needed)
         limits_mmps = (0.2, 1)  # velocity (adjust as needed)
@@ -960,7 +960,7 @@ class GuiMicroscope:
     def init_XY_stage(self):
         frame = tk.LabelFrame(self.root, text='XY STAGE', bd=6)
         frame.grid(row=7, column=2, rowspan=2, columnspan=2,
-                   padx=10, pady=10, sticky='n')
+                   padx=5, pady=5, sticky='n')
         frame_tip = Hovertip(
             frame,
             "The 'XY STAGE' moves the sample in XY with a high degree of\n" +
@@ -1027,7 +1027,7 @@ class GuiMicroscope:
             frame,
             label='step size (% of FOV)',
             checkbox_enabled=False,
-            slider_length=330,
+            slider_length=310,
             tickinterval=6,
             min_value=1,
             max_value=100,
@@ -1043,7 +1043,7 @@ class GuiMicroscope:
             command=lambda d='up (+Y)': _update_position(d),
             width=button_width,
             height=button_height)
-        button_up.grid(row=0, column=1, padx=10, pady=10)
+        button_up.grid(row=0, column=1, padx=5, pady=5)
         # down button:
         button_down = tk.Button(
             frame,
@@ -1051,7 +1051,7 @@ class GuiMicroscope:
             command=lambda d='down (-Y)': _update_position(d),
             width=button_width,
             height=button_height)
-        button_down.grid(row=2, column=1, padx=10, pady=10)
+        button_down.grid(row=2, column=1, padx=5, pady=5)
         # left button:
         button_left = tk.Button(
             frame,
@@ -1059,7 +1059,7 @@ class GuiMicroscope:
             command=lambda d='left (-X)': _update_position(d),
             width=button_width,
             height=button_height)
-        button_left.grid(row=1, column=0, padx=10, pady=10)
+        button_left.grid(row=1, column=0, padx=5, pady=5)
         # right button:
         button_right = tk.Button(
             frame,
@@ -1067,7 +1067,7 @@ class GuiMicroscope:
             command=lambda d='right (+X)': _update_position(d),
             width=button_width,
             height=button_height)
-        button_right.grid(row=1, column=2, padx=10, pady=10)
+        button_right.grid(row=1, column=2, padx=5, pady=5)
         return None
 
     def _update_XY_stage_position(self, XY_stage_position_mm):
@@ -1119,8 +1119,8 @@ class GuiMicroscope:
 
     def init_grid_navigator(self):
         frame = tk.LabelFrame(self.root, text='GRID NAVIGATOR', bd=6)
-        frame.grid(row=1, column=4, rowspan=5, padx=10, pady=10, sticky='n')
-        button_width, button_height = 25, 2
+        frame.grid(row=1, column=4, rowspan=5, padx=5, pady=5, sticky='n')
+        button_width, button_height = 25, 1
         spinbox_width = 20
         # load from file:
         def _load_grid_from_file():
@@ -1595,7 +1595,7 @@ class GuiMicroscope:
 
     def init_tile_navigator(self):
         frame = tk.LabelFrame(self.root, text='TILE NAVIGATOR', bd=6)
-        frame.grid(row=7, column=4, rowspan=2, padx=10, pady=10, sticky='n')
+        frame.grid(row=7, column=4, rowspan=2, padx=5, pady=5, sticky='n')
         button_width, button_height = 25, 2
         spinbox_width = 20
         # tile array width:
@@ -1782,8 +1782,8 @@ class GuiMicroscope:
 
     def init_settings(self):
         frame = tk.LabelFrame(self.root, text='SETTINGS (misc)', bd=6)
-        frame.grid(row=1, column=5, rowspan=5, padx=10, pady=10, sticky='n')
-        button_width, button_height = 25, 2
+        frame.grid(row=1, column=5, rowspan=5, padx=5, pady=5, sticky='n')
+        button_width, button_height = 25, 1
         spinbox_width = 20
         # load from file:
         def _load_settings_from_file():
@@ -1984,7 +1984,7 @@ class GuiMicroscope:
 
     def init_settings_output(self):
         frame = tk.LabelFrame(self.root, text='SETTINGS OUTPUT', bd=6)
-        frame.grid(row=7, column=5, rowspan=3, padx=10, pady=10, sticky='n')
+        frame.grid(row=7, column=5, rowspan=3, padx=5, pady=5, sticky='n')
         button_width, button_height = 25, 2
         spinbox_width = 20
         # volumes per second textbox:
@@ -2174,8 +2174,8 @@ class GuiMicroscope:
 
     def init_position_list(self):
         frame = tk.LabelFrame(self.root, text='POSITION LIST', bd=6)
-        frame.grid(row=1, column=6, rowspan=5, padx=10, pady=10, sticky='n')
-        button_width, button_height = 25, 2
+        frame.grid(row=1, column=6, rowspan=5, padx=5, pady=5, sticky='n')
+        button_width, button_height = 25, 1
         spinbox_width = 20
         # set list defaults:
         self.focus_piezo_position_list = []
@@ -2443,7 +2443,7 @@ class GuiMicroscope:
     def init_acquire(self):
         frame = tk.LabelFrame(
             self.root, text='ACQUIRE', font=('Segoe UI', '10', 'bold'), bd=6)
-        frame.grid(row=7, column=6, rowspan=2, padx=10, pady=10, sticky='n')
+        frame.grid(row=7, column=6, rowspan=3, padx=5, pady=5, sticky='n')
         frame.bind('<Enter>', lambda event: frame.focus_set()) # force update
         button_width, button_height = 25, 2
         bold_width_adjust = -3
@@ -2642,7 +2642,7 @@ class GuiMicroscope:
     def init_exit(self):
         frame = tk.LabelFrame(
             self.root, text='EXIT', font=('Segoe UI', '10', 'bold'), bd=6)
-        frame.grid(row=9, column=6, padx=10, pady=10, sticky='n')
+        frame.grid(row=9, column=6, padx=5, pady=5, sticky='s')
         def _exit():
             if self.init_microscope: self.scope.close()
             self.root.quit()
