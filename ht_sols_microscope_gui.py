@@ -73,6 +73,8 @@ class GuiMicroscope:
                 ls_focus_adjust_v    = 1e3 * self.ls_focus_adjust.value.get(),
                 ls_angular_dither_v  = self.ls_angular_dither.value.get(),
                 ).get_result() # finish
+            # get objective1 info:
+            self.objective1_name.set(self.scope.objective1_name)
             # get XYZ direct from hardware and update gui to aviod motion:
             self.focus_piezo_z_um.update_and_validate(
                 int(round(self.scope.focus_piezo_z_um)))
@@ -755,13 +757,36 @@ class GuiMicroscope:
         frame = tk.LabelFrame(self.root, text='AUTOFOCUS', bd=6)
         frame.grid(row=1, column=3, rowspan=2, padx=5, pady=5, sticky='ne')
         spinbox_width = 20
+        # objective1 name:
+        self.objective1_name = tk.StringVar()
+        objective1_name_textbox = tkcw.Textbox(
+            frame,
+            label='Primary objective',
+            default_text='None',
+            row=0,
+            width=spinbox_width,
+            height=1)
+        def _update_objective1_name():
+            objective1_name_textbox.textbox.delete('1.0', 'end')
+            objective1_name_textbox.textbox.insert(
+                '1.0', self.objective1_name.get(), 'color')
+            return None
+        self.objective1_name.trace_add(
+            'write',
+            lambda var, index, mode: _update_objective1_name())
+        objective1_name_textbox_tip = Hovertip(
+            objective1_name_textbox,
+            "The current primary objective according to the GUI.\n" +
+            "NOTE: this should match the physical objetive on the \n" +
+            "microscope! If it doesn't then exit the GUI and use \n" +
+            "'ht_sols_microscope_gui_objective_selector.py' to update.")
         # sample flag:
         self.autofocus_sample_flag = tk.BooleanVar()
         autofocus_sample_flag_textbox = tkcw.Textbox(
             frame,
             label='Sample flag',
             default_text='None',
-            row=0,
+            row=1,
             width=spinbox_width,
             height=1)
         autofocus_sample_flag_textbox.textbox.tag_add('color', '1.0', 'end')
@@ -788,7 +813,7 @@ class GuiMicroscope:
             frame,
             label='Focus flag',
             default_text='None',
-            row=1,
+            row=2,
             width=spinbox_width,
             height=1)
         autofocus_focus_flag_textbox.textbox.tag_add('color', '1.0', 'end')
@@ -844,7 +869,7 @@ class GuiMicroscope:
             indicatoron=0,
             width=25,
             height=2)
-        autofocus_button.grid(row=2, column=0, padx=10, pady=10)
+        autofocus_button.grid(row=3, column=0, padx=10, pady=10)
         autofocus_button_tip = Hovertip(
             autofocus_button,
             "The 'AUTOFOCUS' will attempt to continously maintain a set\n" +
