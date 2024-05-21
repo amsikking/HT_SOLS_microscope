@@ -114,6 +114,8 @@ class Microscope:
             v_max=10,
             z_min_ai=0,
             z_max_ai=self.autofocus.piezo_range_um)
+        self.autofocus_offset_lens = (
+            self.autofocus._get_offset_lens_position())
         self.autofocus_sample_flag = self.autofocus.get_sample_flag()
         self.autofocus_focus_flag  = self.autofocus.get_focus_flag()
         # set defaults:
@@ -442,6 +444,7 @@ class Microscope:
             'buffer_time_s':self.buffer_time_s,
             'volumes_per_s':self.volumes_per_s,
             # -> additional
+            'autofocus_offset_lens':self.autofocus_offset_lens,
             'autofocus_sample_flag':self.autofocus_sample_flag,
             'autofocus_focus_flag':self.autofocus_focus_flag,
             'Z_stage_position_mm':self.Z_stage.stage1.position_mm,
@@ -810,6 +813,8 @@ class Microscope:
             if self.autofocus_enabled: # update attributes:
                 self.focus_piezo_z_um = self.focus_piezo.get_position(
                     verbose=False)
+                self.autofocus_offset_lens = (
+                    self.autofocus._get_offset_lens_position())
                 self.autofocus_sample_flag = self.autofocus.get_sample_flag()
                 self.autofocus_focus_flag  = self.autofocus.get_focus_flag()
                 if self.print_warnings:
