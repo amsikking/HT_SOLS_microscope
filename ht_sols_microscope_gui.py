@@ -769,7 +769,7 @@ class GuiMicroscope:
         def _update_objective1_name():
             objective1_name_textbox.textbox.delete('1.0', 'end')
             objective1_name_textbox.textbox.insert(
-                '1.0', self.objective1_name.get(), 'color')
+                '1.0', self.objective1_name.get())
             return None
         self.objective1_name.trace_add(
             'write',
@@ -777,8 +777,8 @@ class GuiMicroscope:
         objective1_name_textbox_tip = Hovertip(
             objective1_name_textbox,
             "The current primary objective according to the GUI.\n" +
-            "NOTE: this should match the physical objetive on the \n" +
-            "microscope! If it doesn't then exit the GUI and use \n" +
+            "NOTE: this should match the physical objective on the\n" +
+            "microscope! If it doesn't then exit the GUI and use\n" +
             "'ht_sols_microscope_gui_objective_selector.py' to update.")
         # sample flag:
         self.autofocus_sample_flag = tk.BooleanVar()
@@ -807,13 +807,36 @@ class GuiMicroscope:
             "Shows the status of the 'Sample flag' from the hardware\n" +
             "autofocus.\n" +
             "NOTE: the 'Sample flag' must be 'True' to lock the autofocus.")
+        # offset lens:
+        self.autofocus_offset_lens = tk.IntVar()
+        autofocus_offset_lens_textbox = tkcw.Textbox(
+            frame,
+            label='Offset lens',
+            default_text='None',
+            row=2,
+            width=spinbox_width,
+            height=1)
+        def _update_autofocus_offset_lens():
+            autofocus_offset_lens_textbox.textbox.delete('1.0', 'end')
+            autofocus_offset_lens_textbox.textbox.insert(
+                '1.0', self.autofocus_offset_lens.get())
+            return None
+        self.autofocus_offset_lens.trace_add(
+            'write',
+            lambda var, index, mode: _update_autofocus_offset_lens())
+        autofocus_offset_lens_textbox_tip = Hovertip(
+            autofocus_offset_lens_textbox,
+            "The current position of the autofocus offset lens.\n" +
+            "The offset lens adjusts the lock position of the autofocus\n" +
+            "(active when the autofocus is enabled).\n" +
+            "NOTE: this is adjusted with the 'knob' on the autofocus box")
         # focus flag:
         self.autofocus_focus_flag = tk.BooleanVar()
         autofocus_focus_flag_textbox = tkcw.Textbox(
             frame,
             label='Focus flag',
             default_text='None',
-            row=2,
+            row=3,
             width=spinbox_width,
             height=1)
         autofocus_focus_flag_textbox.textbox.tag_add('color', '1.0', 'end')
@@ -833,7 +856,8 @@ class GuiMicroscope:
             autofocus_focus_flag_textbox,
             "Shows the status of the 'Focus flag' from the hardware\n" +
             "autofocus.\n" +
-            "NOTE: the 'focus flag' must be 'True' to lock the autofocus.")
+            "NOTE: the 'focus flag' should be 'True' if the autofocus is\n" +
+            "locked.")
         def _autofocus():
             if self.autofocus_enabled.get():
                 # hide z hardware:
@@ -869,7 +893,7 @@ class GuiMicroscope:
             indicatoron=0,
             width=25,
             height=2)
-        autofocus_button.grid(row=3, column=0, padx=10, pady=10)
+        autofocus_button.grid(row=4, column=0, padx=10, pady=10)
         autofocus_button_tip = Hovertip(
             autofocus_button,
             "The 'AUTOFOCUS' will attempt to continously maintain a set\n" +
@@ -883,6 +907,8 @@ class GuiMicroscope:
         return None
 
     def _check_autofocus(self):
+        self.autofocus_offset_lens.set(
+            self.scope.autofocus._get_offset_lens_position())
         self.autofocus_sample_flag.set(self.scope.autofocus.get_sample_flag())
         self.autofocus_focus_flag.set(self.scope.autofocus.get_focus_flag())
         if self.autofocus_enabled.get() and self.running_scout_mode.get():
