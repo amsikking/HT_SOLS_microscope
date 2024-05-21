@@ -216,11 +216,12 @@ class Microscope:
         # check z position is legal and assign objective1:
         self.objective1 = objective1_options['BFP_um'].index(
             self.Z_drive_position_um)
+        self.objective1_name  = objective1_options['name'][self.objective1]
+        self.objective1_WD_um = objective1_options['WD_um'][self.objective1]        
         if self.verbose:
-            print("\n%s: -> objective1 = %s"%(
-                self.name, objective1_options['name'][self.objective1]))
+            print("\n%s: -> objective1 = %s"%(self.name, self.objective1_name))
             print("\n%s: -> Z drive open."%self.name)
-        atexit.register(self.Z_drive.close)    
+        atexit.register(self.Z_drive.close)
 
     def _init_autofocus(self):
         if self.verbose: print("\n%s: opening autofocus..."%self.name)
@@ -446,8 +447,8 @@ class Microscope:
             'Z_stage_position_mm':self.Z_stage.stage1.position_mm,
             'Z_drive_position_um':self.Z_drive_position_um,
             'zoom_lens_f_mm':self.zoom_lens_f_mm,
-            'objective1_name':objective1_options['name'][self.objective1],
-            'objective1_WD_um':objective1_options['WD_um'][self.objective1],            
+            'objective1_name':self.objective1_name,
+            'objective1_WD_um':self.objective1_WD_um,
             # optical configuration:
             'M1':M1,
             'Mscan':Mscan,
