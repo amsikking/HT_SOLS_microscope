@@ -1004,6 +1004,7 @@ class GuiMicroscope:
         # equalize:
         def _equalize():
             self.scope.Z_stage.equalize()
+            self._snap_and_display()
             return None
         button_equalize = tk.Button(
             z_stage_frame,
