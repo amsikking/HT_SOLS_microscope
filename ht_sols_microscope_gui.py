@@ -39,6 +39,7 @@ class GuiMicroscope:
         self.init_Z_stage()
         self.init_XY_stage()
         self.init_autofocus()
+        self.init_projection_angle()
         # load microscope GUI's and quit:
         self.init_grid_navigator()  # navigates an XY grid of points
         self.init_tile_navigator()  # generates and navigates XY tiles
@@ -60,6 +61,8 @@ class GuiMicroscope:
             self.scope.XY_stage.set_velocity(5, 5)
             # make mandatory call to 'apply_settings':
             self.scope.apply_settings(
+                projection_mode      = self.projection_mode.get(),
+                projection_angle_deg = self.projection_angle.value.get(),
                 channels_per_slice   = ('LED',),
                 power_per_channel    = (self.power_tl.value.get(),),
                 emission_filter      = self.emission_filter.get(),
@@ -443,7 +446,7 @@ class GuiMicroscope:
             tickinterval=4,
             min_value=60,
             max_value=1500,
-            default_value=1000,
+            default_value=1500,
             row=2,
             column=1,
             sticky='s',
@@ -1196,6 +1199,68 @@ class GuiMicroscope:
             XY_mm[0] != self.X_stage_position_mm or
             XY_mm[1] != self.Y_stage_position_mm)):
             self._update_XY_stage_position(XY_mm)
+        return None
+
+    def init_projection_angle(self):
+        frame = tk.LabelFrame(self.root, text='PROJECTION', bd=6)
+        frame.grid(row=9, column=2, columnspan=2, padx=5, pady=5, sticky='n')
+        button_width, button_height = 10, 1
+        # projection angle slider:
+        tilt_deg = int(round(np.rad2deg(ht_sols.tilt)))
+        coverslip_deg, native_deg, traditional_deg = 0, 90 - tilt_deg, 90
+        self.projection_angle = tkcw.CheckboxSliderSpinbox(
+            frame,
+            label='angle (deg)',
+            checkbox_enabled=False,
+            slider_length=310,
+            tickinterval=6,
+            min_value=coverslip_deg,
+            max_value=traditional_deg,
+            default_value=traditional_deg,
+            width=5)
+        def _update_projection_angle():
+            self.scope.apply_settings(
+                projection_angle_deg=self.projection_angle.value.get())
+            if self.running_scout_mode.get():
+                self._snap_and_display()
+            return None        
+        self.projection_angle.value.trace_add(
+            'write',
+            lambda var, index, mode: _update_projection_angle())
+        projection_angle_tip = Hovertip(
+            self.projection_angle,
+            "The 'angle (deg)' setting adjusts the angle of the projection\n" +
+            "of the 3D object when running the microscope in 'Projection\n" +
+            "mode'.\n" +
+            "NOTE: For more understanding see \n" +
+            "https://doi.org/10.1038/s41592-021-01175-7")
+        # coverslip button:
+        button_coverslip = tk.Button(
+            frame,
+            text="coverslip",
+            command=lambda: self.projection_angle.update_and_validate(
+                coverslip_deg),
+            width=button_width,
+            height=button_height)
+        button_coverslip.grid(row=1, column=0, padx=10, pady=10, sticky='w')
+        # native button:
+        button_native = tk.Button(
+            frame,
+            text="native",
+            command=lambda: self.projection_angle.update_and_validate(
+                native_deg),
+            width=button_width,
+            height=button_height)
+        button_native.grid(row=1, column=0, padx=5, pady=5)
+        # traditional button:
+        button_traditional = tk.Button(
+            frame,
+            text="traditional",
+            command=lambda: self.projection_angle.update_and_validate(
+                traditional_deg),
+            width=button_width,
+            height=button_height)
+        button_traditional.grid(row=1, column=0, padx=10, pady=10, sticky='e')
         return None
 
     def _get_folder_name(self):
@@ -2546,6 +2611,26 @@ class GuiMicroscope:
         button_width, button_height = 25, 2
         bold_width_adjust = -3
         spinbox_width = 20
+        # projection mode:
+        def _update_projection_mode():
+            self.scope.apply_settings(
+                projection_mode=self.projection_mode.get())
+            return None
+        self.projection_mode = tk.BooleanVar()
+        projection_mode_button = tk.Checkbutton(
+            frame,
+            text='Projection mode',
+            variable=self.projection_mode,
+            command=_update_projection_mode)
+        projection_mode_button.grid(
+            row=0, column=0, padx=10, pady=10, sticky='w')
+        projection_mode_button_tip = Hovertip(
+            projection_mode_button,
+            "If checked, the 'Projection mode' button will cause all\n" +
+            "acquisitions to run in 'projection mode' (no volume data).\n" +
+            "NOTE: Typically this mode is much faster and greatly reduces\n" +
+            "the amount memory/data needed. For more understanding see:\n" +
+            "https://doi.org/10.1038/s41592-021-01175-7.")
         # snap volume:
         snap_volume_button = tk.Button(
             frame,
@@ -2554,7 +2639,7 @@ class GuiMicroscope:
             font=('Segoe UI', '10', 'bold'),
             width=button_width + bold_width_adjust,
             height=button_height)
-        snap_volume_button.grid(row=0, column=0, padx=10, pady=10)
+        snap_volume_button.grid(row=1, column=0, padx=10, pady=10)
         snap_volume_button_tip = Hovertip(
             snap_volume_button,
             "The 'Snap volume' button will apply the lastest microscope\n" +
@@ -2585,7 +2670,7 @@ class GuiMicroscope:
             font=('Segoe UI', '10', 'italic'),
             width=button_width,
             height=button_height)
-        live_mode_button.grid(row=1, column=0, padx=10, pady=10)
+        live_mode_button.grid(row=2, column=0, padx=10, pady=10)
         live_mode_button_tip = Hovertip(
             live_mode_button,
             "The 'Live mode (On/Off)' button will enable/disable 'Live \n" +
@@ -2611,7 +2696,7 @@ class GuiMicroscope:
             fg='green',
             width=button_width + bold_width_adjust,
             height=button_height)
-        scout_mode_button.grid(row=2, column=0, padx=10, pady=10)
+        scout_mode_button.grid(row=3, column=0, padx=10, pady=10)
         scout_mode_button_tip = Hovertip(
             scout_mode_button,
             "The 'Scout mode (On/Off)' button will enable/disable \n" +
@@ -2637,7 +2722,7 @@ class GuiMicroscope:
             fg='blue',
             width=button_width + bold_width_adjust,
             height=button_height)
-        save_volume_and_position_button.grid(row=3, column=0, padx=10, pady=10)
+        save_volume_and_position_button.grid(row=4, column=0, padx=10, pady=10)
         save_volume_and_position_tip = Hovertip(
             save_volume_and_position_button,
             "The 'Save volume and position' button will apply the latest\n" +
@@ -2650,7 +2735,7 @@ class GuiMicroscope:
             text='Save preview only',
             variable=self.preview_only)
         preview_only_button.grid(
-            row=4, column=0, padx=10, pady=10, sticky='w')
+            row=5, column=0, padx=10, pady=10, sticky='w')
         preview_only_tip = Hovertip(
             preview_only_button,
             "If checked, the 'Run acquire' button will save 'preview only'\n" +
@@ -2738,7 +2823,7 @@ class GuiMicroscope:
             fg='red',
             width=button_width + bold_width_adjust,
             height=button_height)
-        acquire_button.grid(row=5, column=0, padx=10, pady=10)
+        acquire_button.grid(row=6, column=0, padx=10, pady=10)
         acquire_button_tip = Hovertip(
             acquire_button,
             "The 'Run acquire' button will run a full acquisition and may\n" +
