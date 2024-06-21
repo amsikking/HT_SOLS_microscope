@@ -264,21 +264,25 @@ class Microscope:
             'LSx_BFP'           : 16,
             'LSy_BFP'           : 17,
             'LSx_IMG'           : 18,
-            'LSy_IMG'           : 19
+            'LSy_IMG'           : 19,
+            'shear'             : 20,
             }
         if self.verbose: print("\n%s: opening ao card..."%self.name)
         self.ao = ni_PCIe_6738.DAQ(
-            num_channels=20, rate=ao_rate, verbose=False)
+            num_channels=21, rate=ao_rate, verbose=False)
         if self.verbose: print("\n%s: -> ao card open."%self.name)
         atexit.register(self.ao.close)
 
     def _check_memory(self):        
         # Data:
-        self.images = (self.volumes_per_buffer *
-                       len(self.channels_per_slice) *
-                       self.slices_per_volume)
-        self.bytes_per_data_buffer = (
-            2 * self.images * self.height_px * self.width_px)
+        slices = self.slices_per_volume
+        h_px = self.height_px
+        if self.projection_mode:
+            slices = 1
+            h_px = self.projection_height_px
+        self.images = (
+            self.volumes_per_buffer * len(self.channels_per_slice) * slices)
+        self.bytes_per_data_buffer = 2 * self.images * h_px * self.width_px
         self.data_buffer_exceeded = False
         if self.bytes_per_data_buffer > self.max_bytes_per_buffer:
             self.data_buffer_exceeded = True
@@ -288,17 +292,20 @@ class Microscope:
                 print("%s: -> reduce settings"%self.name +
                       " or increase 'max_bytes_per_buffer'")
         # Preview:
-        preview_shape = DataPreview.shape(self.volumes_per_buffer,
-                                          self.slices_per_volume,
-                                          len(self.channels_per_slice),
-                                          self.height_px,
-                                          self.width_px,
-                                          self.sample_px_um,
-                                          self.scan_step_size_px,
-                                          self.preview_line_px,
-                                          self.preview_crop_px,
-                                          self.timestamp_mode)
-        self.bytes_per_preview_buffer = 2 * int(np.prod(preview_shape))
+        self.preview_shape = DataPreview.shape(
+            self.projection_mode,
+            self.projection_angle_deg,
+            self.volumes_per_buffer,
+            self.slices_per_volume,
+            len(self.channels_per_slice),
+            h_px,
+            self.width_px,
+            self.sample_px_um,
+            self.scan_step_size_px,
+            self.preview_line_px,
+            self.preview_crop_px,
+            self.timestamp_mode)
+        self.bytes_per_preview_buffer = 2 * int(np.prod(self.preview_shape))
         self.preview_buffer_exceeded = False
         if self.bytes_per_preview_buffer > self.max_bytes_per_buffer:
             self.preview_buffer_exceeded = True
@@ -333,6 +340,9 @@ class Microscope:
         galvo_scan_volts = galvo_volts_per_um * self.scan_range_um
         galvo_voltages = np.linspace(
             - galvo_scan_volts/2, galvo_scan_volts/2, self.slices_per_volume)
+        # Shear galvo voltages:
+        galvo_volts_per_px = 0.0021097 # calibrated using AMS-AGY edge
+        galvo_shear_volts = galvo_volts_per_px * self.galvo_shear_px
         # Calculate voltages:
         voltages = []
         # Add preframes (if any):
@@ -342,12 +352,13 @@ class Microscope:
             voltages.append(v)
         for volumes in range(self.volumes_per_buffer):
             # TODO: either bidirectional volumes, or smoother galvo flyback
-            for _slice in range(self.slices_per_volume):
+            slices = self.slices_per_volume
+            if self.projection_mode: slices = 1
+            for _slice in range(slices):
                 for channel, power in zip(self.channels_per_slice,
                                           self.power_per_channel):
                     v = np.zeros((period_px, self.ao.num_channels), 'float64')
                     v[:rolling_px, n2c['camera']] = 5 # falling edge-> light on!
-                    v[:, n2c['galvo']] = galvo_voltages[_slice]
                     light_on_px = rolling_px
                     if channel in ('405_on_during_rolling',): light_on_px = 0
                     if channel != 'LED': # i.e. laser channels
@@ -355,12 +366,23 @@ class Microscope:
                           n2c[channel + '_TTL']] = 3
                     v[light_on_px:period_px - jitter_px,
                       n2c[channel + '_power']] = 4.5 * power / 100
-                    # light sheet:
-                    v[:, n2c['LSx_BFP']] = self.ls_focus_adjust_v # focus adj.
-                    ad_v = self.ls_angular_dither_v               # ang. dither 
+                    # light sheet focus adjust:
+                    v[:, n2c['LSx_BFP']] = self.ls_focus_adjust_v
                     ramp_px = period_px - jitter_px - light_on_px
-                    v[light_on_px:period_px - jitter_px,
-                      n2c['LSx_IMG']] = np.linspace(-ad_v, ad_v, ramp_px)
+                    if self.projection_mode:
+                        gs_v = galvo_scan_volts / 2
+                        v[light_on_px:period_px - jitter_px,
+                          n2c['galvo']] = np.linspace(-gs_v, gs_v, ramp_px)
+                        # shear galvos:
+                        sh_v = galvo_shear_volts / 2
+                        v[light_on_px:period_px - jitter_px,
+                          n2c['shear']] = np.linspace(-sh_v, sh_v, ramp_px)
+                    else:
+                        v[:, n2c['galvo']] = galvo_voltages[_slice]
+                        # light sheet angular dither:
+                        ad_v = self.ls_angular_dither_v
+                        v[light_on_px:period_px - jitter_px,
+                          n2c['LSx_IMG']] = np.linspace(-ad_v, ad_v, ramp_px)
                     voltages.append(v)
         voltages = np.concatenate(voltages, axis=0)
         # Timing attributes:
@@ -415,6 +437,8 @@ class Microscope:
             'preview_only':preview_only,
             # attributes from 'apply_settings':
             # -> args
+            'projection_mode':self.projection_mode,
+            'projection_angle_deg':self.projection_angle_deg,
             'channels_per_slice':tuple(self.channels_per_slice),
             'power_per_channel':tuple(self.power_per_channel),
             'emission_filter':self.emission_filter,
@@ -441,6 +465,8 @@ class Microscope:
             'scan_step_size_px':self.scan_step_size_px,
             'slices_per_volume':self.slices_per_volume,
             'scan_step_size_um':self.scan_step_size_um,
+            'galvo_shear_px':self.galvo_shear_px,
+            'projection_height_px':self.projection_height_px,
             'buffer_time_s':self.buffer_time_s,
             'volumes_per_s':self.volumes_per_s,
             # -> additional
@@ -606,6 +632,8 @@ class Microscope:
 
     def apply_settings( # Must call before .acquire()
         self,
+        projection_mode=None,       # Bool
+        projection_angle_deg=None,  # Float
         channels_per_slice=None,    # Tuple of strings
         power_per_channel=None,     # Tuple of floats
         emission_filter=None,       # String
@@ -640,14 +668,11 @@ class Microscope:
                     setattr(self, k, v) # A lot like self.x = x
                 assert hasattr(self, k), (
                     "%s: attribute %s must be set at least once"%(self.name, k))
-            if height_px is not None or width_px is not None: # legalize first
-                h_px, w_px = height_px, width_px
-                if height_px is None: h_px = self.height_px
-                if width_px is None:  w_px = self.width_px
-                self.height_px, self.width_px, self.roi_px = ( 
-                    pco_edge42_cl.legalize_image_size(
-                        h_px, w_px, verbose=False))
-            if (voxel_aspect_ratio is not None or
+            if (projection_mode is not None or
+                projection_angle_deg is not None or
+                height_px is not None or
+                width_px is not None or
+                voxel_aspect_ratio is not None or
                 scan_range_um is not None or
                 sample_ri is not None):
                 # update sample_ri dependents
@@ -660,6 +685,11 @@ class Microscope:
                 self.MRR = M1 * Mscan * self.M2; self.Mtot = self.MRR * M3;
                 self.sample_px_um = camera_px_um / self.Mtot
                 # update voxel_aspect_ratio/scan_range_um dependents
+                assert isinstance(self.projection_mode, bool)
+                assert 0 <= self.projection_angle_deg <= 90, (
+                        'projection_angle_deg out of range')
+                if self.projection_mode: # set var = 0 -> scan_step_size_px = 1
+                    self.voxel_aspect_ratio = 0
                 self.scan_step_size_px, self.slices_per_volume = (
                     calculate_cuboid_voxel_scan(
                         self.sample_px_um,
@@ -674,6 +704,27 @@ class Microscope:
                     self.scan_step_size_px,
                     self.slices_per_volume)
                 assert 0 <= self.scan_range_um <= 500 # optical limit
+                # calculate projection pixels along light-sheet/chip:
+                # 'law of sines':
+                total_scan_px = self.scan_range_um / self.sample_px_um
+                phi = np.deg2rad(self.projection_angle_deg)
+                gam = np.pi - phi - tilt
+                self.galvo_shear_px = int(
+                    round(total_scan_px * np.sin(phi) / np.sin(gam)))
+                print(self.galvo_shear_px)
+                # work out and legalize the correct h_px, w_px and roi:
+                h_px, w_px = height_px, width_px # shorthand
+                if height_px is None: h_px = self.height_px
+                if width_px is None:  w_px = self.width_px
+                self.height_px, self.width_px, self.roi_px = (
+                    pco_edge42_cl.legalize_image_size(
+                        h_px, w_px, verbose=False))
+                if self.projection_mode: # apply height_px needed on camera
+                    h_px = self.height_px + self.galvo_shear_px
+                    if h_px > 2048: h_px = 2048 # limit to legal
+                    self.projection_height_px, self.width_px, self.roi_px = (
+                        pco_edge42_cl.legalize_image_size(
+                            h_px, w_px, verbose=False))
             self._check_memory()
             if (self.data_buffer_exceeded or
                 self.preview_buffer_exceeded or
@@ -733,18 +784,24 @@ class Microscope:
                     if focus_piezo_z_um != (0,'relative'):
                         raise Exception(
                             'cannot move focus piezo with autofocus enabled')
-            if (height_px is not None or
+            if (projection_mode is not None or
+                projection_angle_deg is not None or
+                height_px is not None or
                 width_px is not None or
-                illumination_time_us is not None):
+                illumination_time_us is not None or
+                scan_range_um is not None or
+                sample_ri is not None):
                 self.camera._disarm()
                 self.camera._set_roi(self.roi_px) # height_px updated first
-                self.camera._set_exposure_time_us(int( 
+                self.camera._set_exposure_time_us(int(
                     self.illumination_time_us + self.camera.rolling_time_us))
                 self.camera._arm(self.camera._num_buffers)
             if timestamp_mode is not None:
                 self.camera._set_timestamp_mode(timestamp_mode)
             check_write_voltages_thread = False
-            if (channels_per_slice is not None or
+            if (projection_mode is not None or
+                projection_angle_deg is not None or
+                channels_per_slice is not None or
                 power_per_channel is not None or
                 height_px is not None or
                 illumination_time_us is not None or
@@ -836,6 +893,8 @@ class Microscope:
                           display,
                           preview_only)).start()
             # We have custody of the camera so attribute access is safe:
+            pm   = self.projection_mode
+            pa   = self.projection_angle_deg
             vo   = self.volumes_per_buffer
             sl   = self.slices_per_volume
             ch   = len(self.channels_per_slice)
@@ -847,6 +906,9 @@ class Microscope:
             c_px = self.preview_crop_px
             ts   = self.timestamp_mode
             im   = self.images + self.camera_preframes
+            if self.projection_mode:
+                sl = 1
+                h_px = self.projection_height_px
             data_buffer = self._get_data_buffer((im, h_px, w_px), 'uint16')
             # camera.record_to_memory() blocks, so we use a thread:
             camera_thread = ct.ResultThread(
@@ -869,11 +931,11 @@ class Microscope:
             # Acquisition is 3D, but display and filesaving are 5D:
             data_buffer = data_buffer[ # ditch preframes
                 self.camera_preframes:, :, :].reshape(vo, sl, ch, h_px, w_px)
-            preview_shape = DataPreview.shape(
-                vo, sl, ch, h_px, w_px, s_um, s_px, l_px, c_px, ts)
-            preview_buffer = self._get_preview_buffer(preview_shape, 'uint16')
-            self.datapreview.get(data_buffer, s_um, s_px, l_px, c_px, ts,
-                                 allocated_memory=preview_buffer)
+            preview_buffer = self._get_preview_buffer(
+                self.preview_shape, 'uint16')
+            self.datapreview.get(
+                data_buffer, pm, pa, s_um, s_px, l_px, c_px, ts,
+                allocated_memory=preview_buffer)
             if display:
                 custody.switch_from(self.datapreview, to=self.display)
                 self.display.show_image(preview_buffer)
@@ -1002,7 +1064,9 @@ class DataPreview:
     # speed (and simplicity) these are calculated to the nearest pixel (without
     # interpolation) and should propably not be used for rigorous analysis.
     @staticmethod
-    def shape(volumes_per_buffer,
+    def shape(projection_mode,
+              projection_angle_deg,
+              volumes_per_buffer,
               slices_per_volume,
               num_channels_per_slice, # = len(channels_per_slice)
               height_px,
@@ -1024,16 +1088,26 @@ class DataPreview:
         if timestamp_mode == "binary+ASCII": t_px = 8 # ignore timestamps
         h_px = height_px - t_px - b_px
         x_px = width_px
-        y_px = int(round((h_px + prop_px_shear_max) * np.cos(tilt)))
-        z_px = int(round(h_px * np.sin(tilt)))
-        shape = (volumes_per_buffer,
-                 num_channels_per_slice,
-                 y_px + z_px + 2 * preview_line_px,
-                 x_px + z_px + 2 * preview_line_px)
+        if projection_mode:
+            y_px = int(round(h_px * np.sin( # h_px has galvo_shear_px added
+                tilt + np.deg2rad(projection_angle_deg))))
+            shape = (volumes_per_buffer,
+                     num_channels_per_slice,
+                     y_px,
+                     x_px)
+        else:
+            y_px = int(round((h_px + prop_px_shear_max) * np.cos(tilt)))
+            z_px = int(round(h_px * np.sin(tilt)))
+            shape = (volumes_per_buffer,
+                     num_channels_per_slice,
+                     y_px + z_px + 2 * preview_line_px,
+                     x_px + z_px + 2 * preview_line_px)
         return shape
 
     def get(self,
             data, # raw 5D data, 'tzcyx' input -> 'tcyx' output
+            projection_mode,
+            projection_angle_deg,
             sample_px_um,
             scan_step_size_px,
             preview_line_px,
@@ -1041,11 +1115,12 @@ class DataPreview:
             timestamp_mode,
             allocated_memory=None):
         vo, slices, ch, h_px, w_px = data.shape
+        pm, pa = projection_mode, projection_angle_deg
         s_um, s_px = sample_px_um, scan_step_size_px
         l_px, c_px = preview_line_px, preview_crop_px
         # Get preview shape and check allocated memory (or make new array):
-        preview_shape = self.shape(
-            vo, slices, ch, h_px, w_px, s_um, s_px, l_px, c_px, timestamp_mode)
+        preview_shape = self.shape(pm, pa, vo, slices, ch, h_px, w_px,
+                                   s_um, s_px, l_px, c_px, timestamp_mode)
         if allocated_memory is not None:
             assert allocated_memory.shape == preview_shape
             return_value = None # use given memory and avoid return
@@ -1069,52 +1144,68 @@ class DataPreview:
         # Make projections:
         for v in range(vo):
             for c in range(ch):
-                O1_proj = np.zeros(
-                    (prop_px + prop_px_shear_max, w_px), 'uint16')
-                width_proj = np.zeros(
-                    (slices + scan_px_shear_max, prop_px), 'uint16')
-                max_width = np.amax(data[v, :, c, :, :], axis=2)
-                scan_proj = np.amax(data[v, :, c, :, :], axis=0)
-                for i in range(slices):
-                    prop_px_shear = int(np.rint(i * prop_px_per_scan_step))
-                    target = O1_proj[prop_px_shear:prop_px + prop_px_shear, :]
-                    np.maximum(target, data[v, i, c, :, :], out=target)
-                for i in range(prop_px):
-                    scan_px_shear = int(np.rint(i * scan_steps_per_prop_px))
-                    width_proj[scan_px_shear:slices + scan_px_shear, i] = (
-                        max_width[:, i])
-                # Scale images according to pixel size (divide by X_px_um):
-                X_px_um = sample_px_um # width axis
-                Y_px_um = sample_px_um * np.cos(tilt) # prop. axis to scan axis
-                Z_px_um = sample_px_um * np.sin(tilt) # prop. axis to O1 axis
-                O1_img    = zoom(
-                    O1_proj, (Y_px_um / X_px_um, 1), mode='nearest')
-                scan_img  = zoom(
-                    scan_proj, (Z_px_um / X_px_um, 1), mode='nearest')
-                scan_scale = O1_img.shape[0] / width_proj.shape[0]
-                # = scan_step_size_um / X_px_um rounded to match O1_img.shape[0]
-                width_img = zoom(
-                    width_proj, (scan_scale, Z_px_um / X_px_um), mode='nearest')
-                # Make image with all projections and flip for traditional view:
-                y_px, x_px = O1_img.shape
-                line_min, line_max = O1_img.min(), O1_img.max()
-                # Pass projections into allocated memory:
-                m = allocated_memory # keep code short!
-                m[v, c, l_px:y_px + l_px, l_px:x_px + l_px] = np.flip(O1_img)
-                m[v, c, y_px + 2*l_px:, l_px:x_px + l_px] = np.flip(scan_img)
-                m[v, c, l_px:y_px + l_px, x_px + 2*l_px:] = np.flip(width_img)
-                m[v, c, y_px + 2*l_px:, x_px + 2*l_px:] = np.full(
-                    (scan_img.shape[0], width_img.shape[1]), 0)
-                # Add line separations between projections:
-                m[v, c, :l_px,    :] = line_max
-                m[v, c, :l_px, ::10] = line_min
-                m[v, c, y_px + l_px:y_px + 2*l_px,    :] = line_max
-                m[v, c, y_px + l_px:y_px + 2*l_px, ::10] = line_min
-                m[v, c, :,    :l_px] = line_max
-                m[v, c, ::10, :l_px] = line_min
-                m[v, c, :,    x_px + l_px:x_px + 2*l_px] = line_max
-                m[v, c, ::10, x_px + l_px:x_px + 2*l_px] = line_min
-                m[v, c, :] = np.flipud(m[v, c, :])
+                if projection_mode:
+                    # Scale images according to pixel size (divide by X_px_um):
+                    X_px_um = sample_px_um # width axis
+                    Z_px_um = sample_px_um * np.sin( # prop. to O1 axis
+                        tilt + np.deg2rad(pa))
+                    img = data[v, 0, c, :, :] # 1 slice
+                    proj_img  = zoom(
+                        img, (Z_px_um / X_px_um, 1), mode='nearest')
+                    # Make image with projection and flip for trad. view:
+                    allocated_memory[v, c, :, :] = proj_img
+                else:
+                    O1_proj = np.zeros(
+                        (prop_px + prop_px_shear_max, w_px), 'uint16')
+                    width_proj = np.zeros(
+                        (slices + scan_px_shear_max, prop_px), 'uint16')
+                    max_width = np.amax(data[v, :, c, :, :], axis=2)
+                    scan_proj = np.amax(data[v, :, c, :, :], axis=0)
+                    for i in range(slices):
+                        prop_px_shear = int(np.rint(i * prop_px_per_scan_step))
+                        target = O1_proj[
+                            prop_px_shear:prop_px + prop_px_shear, :]
+                        np.maximum(target, data[v, i, c, :, :], out=target)
+                    for i in range(prop_px):
+                        scan_px_shear = int(np.rint(i * scan_steps_per_prop_px))
+                        width_proj[scan_px_shear:slices + scan_px_shear, i] = (
+                            max_width[:, i])
+                    # Scale images according to pixel size (divide by X_px_um):
+                    X_px_um = sample_px_um # width axis
+                    Y_px_um = sample_px_um * np.cos(tilt) # prop. to scan axis
+                    Z_px_um = sample_px_um * np.sin(tilt) # prop. to O1 axis
+                    O1_img    = zoom(
+                        O1_proj, (Y_px_um / X_px_um, 1), mode='nearest')
+                    scan_img  = zoom(
+                        scan_proj, (Z_px_um / X_px_um, 1), mode='nearest')
+                    scan_scale = O1_img.shape[0] / width_proj.shape[0]
+                    # = scan_step_size_um / X_px_um rounded to = O1_img.shape[0]
+                    width_img = zoom(width_proj,
+                                     (scan_scale, Z_px_um / X_px_um),
+                                     mode='nearest')
+                    # Make image with all projections and flip for trad. view:
+                    y_px, x_px = O1_img.shape
+                    line_min, line_max = O1_img.min(), O1_img.max()
+                    # Pass projections into allocated memory:
+                    m = allocated_memory # keep code short!
+                    m[v, c, l_px:y_px + l_px, l_px:x_px + l_px] = np.flip(
+                        O1_img)
+                    m[v, c, y_px + 2*l_px:, l_px:x_px + l_px] = np.flip(
+                        scan_img)
+                    m[v, c, l_px:y_px + l_px, x_px + 2*l_px:] = np.flip(
+                        width_img)
+                    m[v, c, y_px + 2*l_px:, x_px + 2*l_px:] = np.full(
+                        (scan_img.shape[0], width_img.shape[1]), 0)
+                    # Add line separations between projections:
+                    m[v, c, :l_px,    :] = line_max
+                    m[v, c, :l_px, ::10] = line_min
+                    m[v, c, y_px + l_px:y_px + 2*l_px,    :] = line_max
+                    m[v, c, y_px + l_px:y_px + 2*l_px, ::10] = line_min
+                    m[v, c, :,    :l_px] = line_max
+                    m[v, c, ::10, :l_px] = line_min
+                    m[v, c, :,    x_px + l_px:x_px + 2*l_px] = line_max
+                    m[v, c, ::10, x_px + l_px:x_px + 2*l_px] = line_min
+                    m[v, c, :] = np.flipud(m[v, c, :])
         return return_value
 
 class DataZ:
@@ -1278,6 +1369,8 @@ if __name__ == '__main__':
     # Create scope object:
     scope = Microscope(max_allocated_bytes=100e9, ao_rate=1e4)
     scope.apply_settings(       # Mandatory call
+        projection_mode=False,
+        projection_angle_deg=0,
         channels_per_slice=("LED", "488"),
         power_per_channel=(50, 10),
         emission_filter='ET525/50M',
