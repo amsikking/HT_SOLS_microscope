@@ -711,7 +711,6 @@ class Microscope:
                 gam = np.pi - phi - tilt
                 self.galvo_shear_px = int(
                     round(total_scan_px * np.sin(phi) / np.sin(gam)))
-                print(self.galvo_shear_px)
                 # work out and legalize the correct h_px, w_px and roi:
                 h_px, w_px = height_px, width_px # shorthand
                 if height_px is None: h_px = self.height_px
@@ -719,6 +718,7 @@ class Microscope:
                 self.height_px, self.width_px, self.roi_px = (
                     pco_edge42_cl.legalize_image_size(
                         h_px, w_px, verbose=False))
+                self.projection_height_px = 0
                 if self.projection_mode: # apply height_px needed on camera
                     h_px = self.height_px + self.galvo_shear_px
                     if h_px > 2048: h_px = 2048 # limit to legal
