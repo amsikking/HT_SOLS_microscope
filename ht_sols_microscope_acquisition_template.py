@@ -13,6 +13,8 @@ if __name__ == '__main__': # required block for sols_microscope
 
     # Apply settings at least once: (required)
     scope.apply_settings(
+        projection_mode=False,      # True/False
+        projection_angle_deg=0,     # 0 -> 90 (0=coverslip, 35=native, 90=trad.)
         channels_per_slice=("LED",),# ('LED','405','488','561','640')
         power_per_channel=(10,),    # match channels 0-100% i.e. (5,0,20,30,100)
         emission_filter='Shutter',  # reset later, options are:
@@ -29,6 +31,7 @@ if __name__ == '__main__': # required block for sols_microscope
         focus_piezo_z_um=(0,'relative'),        # = don't move
         XY_stage_position_mm=(0,0,'relative'),  # = don't move
         sample_ri=1.33,                         # 1.33 -> 1.51 (watery to oily)
+        ls_focus_adjust_v=0,                    # -0.025 -> 0.025 (typical)
         ls_angular_dither_v=0,                  # 0 -> 1 (good for ill_us > 1ms)
         ).get_result()
 
