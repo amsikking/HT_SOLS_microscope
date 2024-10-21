@@ -159,7 +159,8 @@ class Microscope:
             stage1_port='COM28',
             stage2_port='COM29',
             stage3_port='COM11',
-            verbose=False)
+            verbose=False,
+            fast_init=False)
         if self.verbose: print("\n%s: -> zoom lens open."%self.name)
         atexit.register(self.zoom_lens.close)
 
