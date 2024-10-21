@@ -1019,21 +1019,7 @@ class GuiMicroscope:
             height=button_height,
             width=button_width)
         button_equalize.grid(row=4, padx=10, pady=10)
-        # popup exit button:
-        def _exit_z_stage_popup():
-            _equalize()
-            run_update_position.set(0)
-            z_stage_popup.withdraw()
-            z_stage_popup.grab_release()
-            return None
-        exit_z_stage_popup_button = tk.Button(
-            z_stage_popup,
-            text="Exit",
-            command=_exit_z_stage_popup,
-            height=button_height,
-            width=button_width)
-        exit_z_stage_popup_button.grid(
-            row=4, column=0, padx=10, pady=10, sticky='n')
+        # popup open and close:
         def _open_z_stage_popup():
             _move_fast()
             _get_position()
@@ -1041,6 +1027,13 @@ class GuiMicroscope:
             _run_update_position()
             z_stage_popup.deiconify()
             z_stage_popup.grab_set() # force user to interact
+        def _close_z_stage_popup():
+            _equalize()
+            run_update_position.set(0)
+            z_stage_popup.withdraw()
+            z_stage_popup.grab_release()
+            return None
+        z_stage_popup.protocol("WM_DELETE_WINDOW", _close_z_stage_popup)
         # move:
         button_move_sample = tk.Button(
             self.Z_stage_frame,
