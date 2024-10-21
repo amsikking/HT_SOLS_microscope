@@ -30,6 +30,8 @@ class ObjectiveSelector:
             p0 = O1_positions_um.index(z_um)
             if verbose:
                 print('%s: current position   = %s'%(name, O1_options[p0]))
+        if verbose:
+            print('%s: -> done.'%name)
         # init gui:
         root = tk.Tk()
         root.title('Objective selector GUI')        
@@ -46,23 +48,18 @@ class ObjectiveSelector:
                                buttons=O1_options,
                                default_position=p0,
                                function=_move)
-        # quit:
-        def _quit():
+        # add close function + any commands for when the user hits the 'X'
+        def _close():
             if verbose:
                 print('%s: closing'%name)
             z_drive.close()
-            root.quit()
+            root.destroy()
             if verbose:
                 print('%s: -> done.'%name)
             return None
-        button_quit = tk.Button(
-            root, text="QUIT", command=_quit, height=3, width=20)
-        button_quit.grid(row=1, column=0, padx=20, pady=20, sticky='n')
-        if verbose:
-            print('%s: -> done.'%name)
+        root.protocol("WM_DELETE_WINDOW", _close)
         # run gui:
-        root.mainloop()
-        root.destroy()
+        root.mainloop() # blocks here until 'X'
 
 if __name__ == '__main__':
     objective_selector = ObjectiveSelector(
