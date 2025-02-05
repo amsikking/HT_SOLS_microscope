@@ -678,7 +678,7 @@ class GuiMicroscope:
             "The 'FOCUS PIEZO' is a (fast) fine focus device for precisley\n" +
             "adjusting the focus of the primary objective over a short\n" +
             "range.")
-        min_um, max_um = 0, min(ht_sols.objective1_options['WD_um'])
+        min_um, max_um = 0, 800
         small_move_um, large_move_um = 1, 5
         center_um = int(round((max_um - min_um) / 2))
         # slider:
