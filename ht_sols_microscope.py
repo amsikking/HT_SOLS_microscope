@@ -105,12 +105,10 @@ class Microscope:
         slow_camera_init.get_result()
         slow_fw_init.get_result()
         # configure autofocus: (Z_drive, focus_piezo and autofocus initialized)
-        self.autofocus.set_current_objective(self.objective1 + 1)
-        z_range_um = min(objective1_options['WD_um']) # a reasonable choice
-        self.autofocus.set_piezo_range_um(z_range_um)
         self.autofocus.set_digipot_mode('Offset') # set for user convenience
-        self.focus_piezo.set_analog_control_limits( # 0-10V is 'z_range_um'
-            v_min=0,
+        self.autofocus.set_piezo_range_um(769) # closest legal value to 800
+        self.focus_piezo.set_analog_control_limits(
+            v_min=0,    # 0-10V is 'self.focus_piezo.z_max'
             v_max=10,
             z_min_ai=0,
             z_max_ai=self.autofocus.piezo_range_um)
