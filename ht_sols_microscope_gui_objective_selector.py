@@ -2,22 +2,24 @@
 import tkinter as tk
 
 # Our code, one .py file per module, copy files to your local directory:
+import prior_PureFocus850       # github.com/amsikking/prior_PureFocus850
 import thorlabs_MCM3000                 # github.com/amsikking/thorlabs_MCM3000
 import ht_sols_microscope as ht_sols # github.com/amsikking/HT_SOLS_microscope
 import tkinter_compound_widgets as tkcw # github.com/amsikking/tkinter 
 
 class ObjectiveSelector:
     def __init__(self,
-                 which_port,
                  name='ObjectiveSelector',
                  verbose=True,
                  very_verbose=False):
         if verbose:
             print('%s: initializing'%name)
         # init hardware:
+        autofocus = prior_PureFocus850.Controller(
+            which_port='COM8', verbose=very_verbose)
         ch = 2
         z_drive = thorlabs_MCM3000.Controller(
-            which_port=which_port,
+            which_port='COM21',
             stages=(None, None, 'ZFM2020'),
             reverse=(False, False, False),
             verbose=very_verbose)
@@ -39,6 +41,7 @@ class ObjectiveSelector:
         def _move(rb_pos):
             if verbose:
                 print('%s: moving to position = %s'%(name, O1_options[rb_pos]))
+            autofocus.set_current_objective(rb_pos + 1)
             z_drive.move_um(ch, O1_positions_um[rb_pos], relative=False)
             if verbose:
                 print('%s: -> done.'%name)
@@ -52,6 +55,7 @@ class ObjectiveSelector:
         def _close():
             if verbose:
                 print('%s: closing'%name)
+            autofocus.close()
             z_drive.close()
             root.destroy()
             if verbose:
@@ -62,5 +66,4 @@ class ObjectiveSelector:
         root.mainloop() # blocks here until 'X'
 
 if __name__ == '__main__':
-    objective_selector = ObjectiveSelector(
-        which_port='COM21', verbose=True, very_verbose=False)
+    objective_selector = ObjectiveSelector(verbose=True, very_verbose=False)
