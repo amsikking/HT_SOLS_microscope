@@ -12,7 +12,7 @@ import time
 # Third party imports, installable via pip:
 import numpy as np
 from tifffile import imread
-import zarr
+import tensorstore as ts
 
 # Our code, one .py file per module, copy files to your local directory:
 from ht_sols_microscope import DataNative
@@ -74,17 +74,27 @@ for file in data_file_names:
     print('chunks=%s'%str(chunks))
     # convert to zarr and store:
     print('creating .zarr...', end='')
-    store = data_zarr_folder + file.split('.')[0] + '.zarr'
-    arr = zarr.create(
-        shape=data_native.shape,
-        chunks=chunks,
-        dtype='uint16',
-        store=store)
-    arr[:] = data_native
+    vol_filepath = data_zarr_folder + file.split('.')[0] + '.zarr'
+    arr = ts.open(
+        {'driver': 'zarr3',
+         'kvstore': {
+             'driver': 'file',
+             'path': vol_filepath,
+             },
+         'create': True,
+         'metadata': {
+             'data_type': 'uint16',
+             'shape': data_native.shape,
+             'chunk_grid': {'name': 'regular',
+                            'configuration': {'chunk_shape': chunks}},
+             },
+            }
+        ).result()
+    arr[:].write(data_native).result()
     print('done')
 
 total_time_s = time.perf_counter() - t0
 time_per_file_s = total_time_s / num_files
 
-print('total_time_s=%s'%total_time_s)           # 8769.51s (2.43h) 737GB
-print('time_per_file_s=%s'%time_per_file_s)     # 22.83s per 1.91GB file
+print('total_time_s=%s'%total_time_s)           # 2958.78s (49min) 737GB
+print('time_per_file_s=%s'%time_per_file_s)     # 7.70s per 1.91GB file
