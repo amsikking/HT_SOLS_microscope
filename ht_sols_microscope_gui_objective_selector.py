@@ -16,10 +16,10 @@ class ObjectiveSelector:
             print('%s: initializing'%name)
         # init hardware:
         autofocus = prior_PureFocus850.Controller(
-            which_port='COM8', verbose=very_verbose)
+            which_port='COM6', verbose=very_verbose)
         ch = 2
         z_drive = thorlabs_MCM3000.Controller(
-            which_port='COM21',
+            which_port='COM9',
             stages=(None, None, 'ZFM2020'),
             reverse=(False, False, False),
             verbose=very_verbose)
