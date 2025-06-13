@@ -141,7 +141,7 @@ class Microscope:
     def _init_filter_wheel(self):
         if self.verbose: print("\n%s: opening filter wheel..."%self.name)
         self.filter_wheel = sutter_Lambda_10_3.Controller(
-            which_port='COM10', verbose=False)
+            which_port='COM7', verbose=False)
         if self.verbose: print("\n%s: -> filter wheel open."%self.name)
         atexit.register(self.filter_wheel.close)
 
@@ -154,9 +154,9 @@ class Microscope:
     def _init_zoom_lens(self):
         if self.verbose: print("\n%s: opening zoom lens..."%self.name)
         self.zoom_lens = zoom_lens.ZoomLens(
-            stage1_port='COM28',
-            stage2_port='COM29',
-            stage3_port='COM11',
+            stage1_port='COM13',
+            stage2_port='COM14',
+            stage3_port='COM15',
             verbose=False,
             fast_init=False)
         if self.verbose: print("\n%s: -> zoom lens open."%self.name)
@@ -165,7 +165,7 @@ class Microscope:
     def _init_lasers(self):
         if self.verbose: print("\n%s: opening lasers..."%self.name)
         self.lasers = coherent_OBIS_LSLX_laser_box.Controller(
-            which_port='COM22', control_mode='analog', verbose=False)
+            which_port='COM3', control_mode='analog', verbose=False)
         for laser in self.lasers.lasers:
             self.lasers.set_enable('ON', laser)
         if self.verbose: print("\n%s: -> lasers open."%self.name)
@@ -173,10 +173,10 @@ class Microscope:
     def _init_snoutfocus(self):
         if self.verbose: print("\n%s: opening snoutfocus piezo..."%self.name)
         self.snoutfocus_piezo = thorlabs_MDT694B.Controller(
-            which_port='COM12', verbose=False)
+            which_port='COM10', verbose=False)
         if self.verbose: print("\n%s: -> snoutfocus piezo open."%self.name)
         self.snoutfocus_shutter = thorlabs_KSC101.Controller(
-            'COM18', mode='trigger', verbose=False)
+            'COM8', mode='trigger', verbose=False)
         self.snoutfocus_shutter.set_state('open', block=False)
         if self.verbose: print("\n%s: -> snoutfocus shutter open."%self.name)
         atexit.register(self.snoutfocus_piezo.close)
@@ -185,21 +185,21 @@ class Microscope:
     def _init_focus_piezo(self):
         if self.verbose: print("\n%s: opening focus piezo..."%self.name)
         self.focus_piezo = pi_E_709_1C1L.Controller(
-            which_port='COM27', z_min_um=0, z_max_um=800, verbose=False)
+            which_port='COM5', z_min_um=0, z_max_um=800, verbose=False)
         if self.verbose: print("\n%s: -> focus piezo open."%self.name)
         atexit.register(self.focus_piezo.close)
 
     def _init_XY_stage(self):
         if self.verbose: print("\n%s: opening XY stage..."%self.name)        
         self.XY_stage = pi_C_867_2U2.Controller(
-            which_port='COM19', verbose=False)
+            which_port='COM4', verbose=False)
         if self.verbose: print("\n%s: -> XY stage open."%self.name)
         atexit.register(self.XY_stage.close)
 
     def _init_Z_stage(self):
         if self.verbose: print("\n%s: opening Z stage..."%self.name)
         self.Z_stage = thorlabs_MLJ_Z_stage.ZStage(
-            which_ports=('COM7','COM9'),
+            which_ports=('COM11','COM12'),
             limits_mm=(0, 30),
             velocity_mmps=0.2,
             verbose=False)
@@ -209,7 +209,7 @@ class Microscope:
     def _init_Z_drive(self):
         if self.verbose: print("\n%s: opening Z drive..."%self.name)
         self.Z_drive = thorlabs_MCM3000.Controller(
-            which_port='COM21',
+            which_port='COM9',
             stages=(None, None, 'ZFM2020'),
             reverse=(False, False, False),
             verbose=False)
@@ -227,7 +227,7 @@ class Microscope:
     def _init_autofocus(self):
         if self.verbose: print("\n%s: opening autofocus..."%self.name)
         self.autofocus = prior_PureFocus850.Controller(
-            which_port='COM8', verbose=False)
+            which_port='COM6', verbose=False)
         if self.verbose: print("\n%s: -> autofocus open."%self.name)
         atexit.register(self.autofocus.close)
 
