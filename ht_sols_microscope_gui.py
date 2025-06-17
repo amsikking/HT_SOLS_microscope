@@ -283,8 +283,9 @@ class GuiMicroscope:
         frame.grid(row=9, column=0, padx=5, pady=5, sticky='n')
         button_width, button_height = 10, 1
         # focus slider:
-        ls_focus_adjust_min = -25
+        ls_focus_adjust_min = -100
         ls_focus_adjust_max = -ls_focus_adjust_min
+        ls_focus_adjust_step = 5
         self.ls_focus_adjust = tkcw.CheckboxSliderSpinbox(
             frame,
             label='focus adjust (mV)',
@@ -314,6 +315,16 @@ class GuiMicroscope:
             "light-sheet with respect to the focal plane. This can help\n" +
             "improve resolution and contrast between different samples\n" +
             "and different optical configurations.\n")
+        # -ve button:
+        button_ls_focus_adjust_negative = tk.Button(
+            frame,
+            text="-%i"%ls_focus_adjust_step,
+            command=lambda: self.ls_focus_adjust.update_and_validate(
+                self.ls_focus_adjust.value.get() - ls_focus_adjust_step),
+            width=button_width,
+            height=button_height)
+        button_ls_focus_adjust_negative.grid(
+            row=1, column=0, padx=10, pady=10, sticky='w')
         # zero button:
         button_ls_focus_adjust_zero = tk.Button(
             frame,
@@ -323,6 +334,16 @@ class GuiMicroscope:
             height=button_height)
         button_ls_focus_adjust_zero.grid(
             row=1, column=0, padx=5, pady=5)
+        # +ve button:
+        button_ls_focus_adjust_positive = tk.Button(
+            frame,
+            text="%i"%ls_focus_adjust_step,
+            command=lambda: self.ls_focus_adjust.update_and_validate(
+                self.ls_focus_adjust.value.get() + ls_focus_adjust_step),
+            width=button_width,
+            height=button_height)
+        button_ls_focus_adjust_positive.grid(
+            row=1, column=0, padx=10, pady=10, sticky='e')
         # dither slider:
         ls_angular_dither_min = 0
         ls_angular_dither_max = 1
