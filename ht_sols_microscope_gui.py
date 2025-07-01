@@ -140,7 +140,7 @@ class GuiMicroscope:
             label='470-850nm (%)',
             checkbox_default=True,
             slider_length=200,
-            default_value=25,
+            default_value=50,
             width=5)
         self.power_tl.checkbox_value.trace_add(
             'write', self._apply_channel_settings)        
@@ -162,7 +162,7 @@ class GuiMicroscope:
             label='405nm (%)',
             color='magenta',
             slider_length=200,
-            default_value=5,
+            default_value=50,
             width=5)
         self.power_405.checkbox_value.trace_add(
             'write', self._apply_channel_settings)        
@@ -174,7 +174,7 @@ class GuiMicroscope:
             label='488nm (%)',
             color='blue',
             slider_length=200,
-            default_value=5,
+            default_value=50,
             row=1,
             width=5)
         self.power_488.checkbox_value.trace_add(
@@ -187,7 +187,7 @@ class GuiMicroscope:
             label='561nm (%)',
             color='green',
             slider_length=200,
-            default_value=5,
+            default_value=50,
             row=2,
             width=5)
         self.power_561.checkbox_value.trace_add(
@@ -200,7 +200,7 @@ class GuiMicroscope:
             label='640nm (%)',
             color='red',
             slider_length=200,
-            default_value=5,
+            default_value=50,
             row=3,
             width=5)
         self.power_640.checkbox_value.trace_add(
@@ -422,7 +422,7 @@ class GuiMicroscope:
             slider_enabled=False,
             min_value=100,
             max_value=1000000,
-            default_value=1000,
+            default_value=100,
             columnspan=2,
             row=0,
             width=10,
@@ -446,9 +446,9 @@ class GuiMicroscope:
             slider_length=200,
             tickinterval=3,
             slider_flipped=True,
-            min_value=12,
+            min_value=20,
             max_value=1200,
-            default_value=250,
+            default_value=200,
             row=1,
             width=5)
         self.height_px.value.trace_add(
@@ -500,8 +500,8 @@ class GuiMicroscope:
         slider_length = 365 # match to camera
         button_width, button_height = 10, 1
         # scan slider:
-        scan_range_um_min, scan_range_um_max = 1, 250
-        scan_range_um_scout = 50
+        scan_range_um_min, scan_range_um_max = 1, 251
+        scan_range_um_scout = 100
         self.scan_range_um = tkcw.CheckboxSliderSpinbox(
             frame,
             label='~scan range (um)',
@@ -536,7 +536,7 @@ class GuiMicroscope:
         # scan scout button:
         button_scan_range_um_scout = tk.Button(
             frame,
-            text="scout?",
+            text="scout",
             command=lambda: self.scan_range_um.update_and_validate(
                 scan_range_um_scout),
             width=button_width,
@@ -554,9 +554,8 @@ class GuiMicroscope:
         button_scan_range_um_max.grid(
             row=1, column=0, padx=10, pady=10, sticky='e')
         # voxel slider:
-        voxel_aspect_ratio_min, voxel_aspect_ratio_max = 1, 32
-        voxel_aspect_ratio_center = int(round((
-            voxel_aspect_ratio_max - voxel_aspect_ratio_min) / 2))
+        voxel_aspect_ratio_min, voxel_aspect_ratio_max = 1, 21
+        voxel_aspect_ratio_scout = 10
         self.voxel_aspect_ratio = tkcw.CheckboxSliderSpinbox(
             frame,
             label='~voxel aspect ratio',
@@ -565,7 +564,7 @@ class GuiMicroscope:
             tickinterval=10,
             min_value=voxel_aspect_ratio_min,
             max_value=voxel_aspect_ratio_max,
-            default_value=voxel_aspect_ratio_max,
+            default_value=voxel_aspect_ratio_scout,
             row=2,
             width=5)
         self.voxel_aspect_ratio.value.trace_add(
@@ -593,15 +592,15 @@ class GuiMicroscope:
             height=button_height)
         button_voxel_aspect_ratio_min.grid(
             row=3, column=0, padx=10, pady=10, sticky='w')
-        # voxel center button:
-        button_voxel_aspect_ratio_center = tk.Button(
+        # voxel scout button:
+        button_voxel_aspect_ratio_scout = tk.Button(
             frame,
-            text="center",
+            text="scout",
             command=lambda: self.voxel_aspect_ratio.update_and_validate(
-                voxel_aspect_ratio_center),
+                voxel_aspect_ratio_scout),
             width=button_width,
             height=button_height)
-        button_voxel_aspect_ratio_center.grid(
+        button_voxel_aspect_ratio_scout.grid(
             row=3, column=0, padx=5, pady=5)
         # voxel max button:
         button_voxel_aspect_ratio_max = tk.Button(
@@ -637,7 +636,7 @@ class GuiMicroscope:
             tickinterval=6,
             min_value=sample_ri_min,
             max_value=sample_ri_max,
-            default_value=sample_ri_center,
+            default_value=sample_ri_min,
             increment=0.01,
             integers_only=False,            
             row=0,
