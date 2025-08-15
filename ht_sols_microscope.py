@@ -71,8 +71,6 @@ class Microscope:
         if self.verbose: print("%s: opening..."%self.name)
         self.unfinished_tasks = queue.Queue()
         # init hardware/software:
-        slow_fw_init = ct.ResultThread(
-            target=self._init_filter_wheel).start() #~5.3s
         slow_camera_init = ct.ResultThread(
             target=self._init_camera).start()       #~3.6s
         slow_zoom_lens_init = ct.ResultThread(
@@ -87,6 +85,8 @@ class Microscope:
             target=self._init_XY_stage).start()     #~0.4s
         slow_Z_stage_init = ct.ResultThread(
             target=self._init_Z_stage).start()      #~0.3s
+        slow_fw_init = ct.ResultThread(
+            target=self._init_filter_wheel).start() #~0.08s        
         slow_Z_drive_init = ct.ResultThread(
             target=self._init_Z_drive).start()      #~0.07s
         slow_autofocus_init = ct.ResultThread(
@@ -96,6 +96,7 @@ class Microscope:
         self._init_ao(ao_rate)                      #~0.2s
         slow_autofocus_init.get_result()
         slow_Z_drive_init.get_result()
+        slow_fw_init.get_result()
         slow_Z_stage_init.get_result()
         slow_XY_stage_init.get_result()
         slow_focus_init.get_result()
@@ -103,7 +104,6 @@ class Microscope:
         slow_lasers_init.get_result()
         slow_zoom_lens_init.get_result()
         slow_camera_init.get_result()
-        slow_fw_init.get_result()
         # configure autofocus: (Z_drive, focus_piezo and autofocus initialized)
         self.autofocus.set_digipot_mode('Offset') # set for user convenience
         self.autofocus.set_piezo_range_um(769) # closest legal value to 800
@@ -137,13 +137,6 @@ class Microscope:
         self.num_active_preview_buffers = 0
         self._settings_applied = False
         if self.verbose: print("\n%s: -> open and ready."%self.name)
-
-    def _init_filter_wheel(self):
-        if self.verbose: print("\n%s: opening filter wheel..."%self.name)
-        self.filter_wheel = sutter_Lambda_10_3.Controller(
-            which_port='COM7', verbose=False)
-        if self.verbose: print("\n%s: -> filter wheel open."%self.name)
-        atexit.register(self.filter_wheel.close)
 
     def _init_camera(self):
         if self.verbose: print("\n%s: opening camera..."%self.name)
@@ -205,6 +198,13 @@ class Microscope:
             verbose=False)
         if self.verbose: print("\n%s: -> Z stage open."%self.name)
         atexit.register(self.Z_stage.close)
+
+    def _init_filter_wheel(self):
+        if self.verbose: print("\n%s: opening filter wheel..."%self.name)
+        self.filter_wheel = sutter_Lambda_10_3.Controller(
+            which_port='COM7', verbose=False)
+        if self.verbose: print("\n%s: -> filter wheel open."%self.name)
+        atexit.register(self.filter_wheel.close)
 
     def _init_Z_drive(self):
         if self.verbose: print("\n%s: opening Z drive..."%self.name)
@@ -1403,4 +1403,4 @@ if __name__ == '__main__':
     scope.close()
 
     t1 = time.perf_counter()
-    print('time_s', t1 - t0) # ~ 9.5s
+    print('time_s', t1 - t0) # ~ 16s
