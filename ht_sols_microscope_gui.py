@@ -2803,7 +2803,8 @@ class GuiMicroscope:
                         self.delay_saved = True
                 # check acquire count before re-run:
                 if self.acquire_count < self.acquire_number.value.get():
-                    self.root.after(wait_ms, _run_acquire)
+                    self._run_acquire_task = self.root.after(
+                        wait_ms, _run_acquire)
                 else:
                     self.scope.finish_all_tasks()
                     self._set_running_mode('None')
@@ -2892,6 +2893,9 @@ class GuiMicroscope:
             # turn everything off:
             for v in self.mode_to_variable.values():
                 v.set(0)
+            # kill any remaining .after tasks from '_run_acquire':
+            if hasattr(self, '_run_acquire_task'):
+                self.root.after_cancel(self._run_acquire_task)
             # hide cancel popup and release set:
             self.cancel_running_mode_popup.withdraw()
             self.cancel_running_mode_popup.grab_release()
