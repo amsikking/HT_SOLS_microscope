@@ -1072,36 +1072,32 @@ class GuiMicroscope:
             "determines how much the move buttons will move as a % of the\n" +
             "current field of view (FOV).")
         # position:
-        self.XY_stage_position_mm = tk.StringVar()
+        self.XY_stage_position_mm = tk.StringVar(value='None')
         self.XY_stage_position_mm.trace_add(
             'write',
             lambda var, index, mode: self.scope.apply_settings(
                 XY_stage_position_mm=(self.X_stage_position_mm,
                                       self.Y_stage_position_mm,
                                       'absolute')))
-        # position textbox:
-        self.XY_stage_position_textbox = tkcw.Textbox(
-            frame,
-            label='[X, Y] position (mm)',
-            row=1,
-            column=1,
-            height=1,
+        # position label:
+        XY_stage_position_frame = tk.LabelFrame(frame, text='Position (mm)')
+        XY_stage_position_frame.grid(row=1, column=1, padx=10, pady=5)        
+        XY_stage_position_label = tk.Label(
+            XY_stage_position_frame,
+            textvariable=self.XY_stage_position_mm,
+            bg='white',
             width=20)
-        # last move textbox:
-        self.last_move = tk.StringVar()
-        last_move_textbox = tkcw.Textbox(
-            frame,
-            label='last move',
-            default_text='None',
-            height=1,
+        XY_stage_position_label.grid(padx=5, pady=5)
+        # last move label:
+        self.XY_stage_last_move = tk.StringVar(value='None')
+        XY_stage_last_move_frame = tk.LabelFrame(frame, text='Last move')
+        XY_stage_last_move_frame.grid(row=0, column=0, padx=10, pady=5)
+        XY_stage_last_move_label = tk.Label(
+            XY_stage_last_move_frame,
+            textvariable=self.XY_stage_last_move,
+            bg='white',
             width=10)
-        def _update_last_move():
-            last_move_textbox.textbox.delete('1.0', 'end')
-            last_move_textbox.textbox.insert('1.0', self.last_move.get())
-            return None
-        self.last_move.trace_add(
-            'write',
-            lambda var, index, mode: _update_last_move())
+        XY_stage_last_move_label.grid(padx=5, pady=5)        
         def _update_position(how):
             # calculate move size:
             move_factor = move_pct.value.get() / 100
@@ -1114,7 +1110,7 @@ class GuiMicroscope:
             if how == 'left (-X)':     move_mm = (-lr_move_mm, 0)
             if how == 'right (+X)':    move_mm = (lr_move_mm, 0)
             # update:
-            self.last_move.set(how)
+            self.XY_stage_last_move.set(how)
             self._update_XY_stage_position(
                 [self.X_stage_position_mm + move_mm[0],
                  self.Y_stage_position_mm + move_mm[1]])
@@ -1170,14 +1166,10 @@ class GuiMicroscope:
         return None
 
     def _update_XY_stage_position(self, XY_stage_position_mm):
-        X, Y = XY_stage_position_mm[0], XY_stage_position_mm[1]
-        XY_string = '[%0.3f, %0.3f]'%(X, Y)
-        # textbox:
-        self.XY_stage_position_textbox.textbox.delete('1.0', 'end')
-        self.XY_stage_position_textbox.textbox.insert('1.0', XY_string)
-        # attributes
-        self.X_stage_position_mm, self.Y_stage_position_mm = X, Y
-        self.XY_stage_position_mm.set(XY_string)
+        self.X_stage_position_mm = XY_stage_position_mm[0]
+        self.Y_stage_position_mm = XY_stage_position_mm[1]
+        self.XY_stage_position_mm.set(
+            'X = %0.3f, Y = %0.3f'%tuple(XY_stage_position_mm))
         return None
 
     def _check_joystick(self):
@@ -1185,16 +1177,16 @@ class GuiMicroscope:
         joystick_active = False
         if   XY_mm[0] == self.scope.XY_stage.x_min:
             joystick_active = True
-            self.last_move.set('left (-X)')
+            self.XY_stage_last_move.set('left (-X)')
         elif XY_mm[0] == self.scope.XY_stage.x_max:
             joystick_active = True
-            self.last_move.set('right (+X)')
+            self.XY_stage_last_move.set('right (+X)')
         elif XY_mm[1] == self.scope.XY_stage.y_min:
             joystick_active = True
-            self.last_move.set('down (-Y)')
+            self.XY_stage_last_move.set('down (-Y)')
         elif XY_mm[1] == self.scope.XY_stage.y_max:
             joystick_active = True
-            self.last_move.set('up (+Y)')
+            self.XY_stage_last_move.set('up (+Y)')
         if (joystick_active and self.running_scout_mode.get()):
             self._snap_and_display()
         if (not joystick_active and (
