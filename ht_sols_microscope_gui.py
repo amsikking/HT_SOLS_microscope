@@ -1439,7 +1439,7 @@ class GuiMicroscope:
                 row=0, column=1, rowspan=5, padx=10, pady=10)
             def _set(grid):
                 # update:
-                self.grid_location.set(grid)
+                self.grid_index.set(grid)
                 row, col, p_mm = self.grid_list[grid]
                 # find home position:
                 grid_mm = self.grid_um.value.get() / 1000
@@ -1491,26 +1491,24 @@ class GuiMicroscope:
             "operation (i.e. this operation 'homes' the grid). To change\n" +
             "the grid origin simply update with this button")
         # current location:
-        def _update_grid_location():
-            r, c, p_mm = self.grid_list(self.grid_location.get())
+        def _update_grid_location(*args):
+            r, c, p_mm = self.grid_list[self.grid_index.get()]
             name = '%s%i'%(chr(ord('@') + r + 1), c + 1)
-            self.grid_location_textbox.textbox.delete('1.0', 'end')
-            self.grid_location_textbox.textbox.insert('1.0', name)
+            self.grid_location.set(name)
             return None
-        self.grid_location = tk.IntVar()
-        self.grid_location_textbox = tkcw.Textbox(
-            frame,
-            label='Grid location',
-            default_text='None',
-            height=1,
+        self.grid_index = tk.IntVar()
+        self.grid_index.trace_add('write', _update_grid_location)
+        self.grid_location = tk.StringVar(value='None')
+        grid_location_frame = tk.LabelFrame(frame, text='Grid location')
+        grid_location_frame.grid(row=3, padx=10, pady=10)
+        grid_location_label = tk.Label(
+            grid_location_frame,
+            textvariable=self.grid_location,
+            bg='white',
             width=20)
-        self.grid_location_textbox.grid(
-            row=3, column=0, padx=10, pady=10)
-        self.grid_location.trace_add(
-            'write',
-            lambda var, index, mode: _update_grid_location)
-        grid_location_tip = Hovertip(
-            self.grid_location_textbox,
+        grid_location_label.grid(padx=5, pady=5)
+        grid_location_label_tip = Hovertip(
+            grid_location_frame,
             "The 'Current grid location' displays the last grid location\n" +
             "that was moved to (or set) with the 'GRID NAVIGATOR' panel.\n" +
             "NOTE: it does not display the current position and is not \n" +
@@ -1542,7 +1540,7 @@ class GuiMicroscope:
                 self._update_XY_stage_position(self.grid_list[grid][2])
                 self._snap_and_display()
                 # update attributes and buttons:
-                self.grid_location.set(grid)
+                self.grid_index.set(grid)
                 self.start_grid_preview_button.config(state='disabled')
                 if grid == 0:
                     self.start_grid_preview_button.config(state='normal')
@@ -1559,7 +1557,7 @@ class GuiMicroscope:
                     width=5,
                     height=2)
                 grid_button.grid(row=r, column=c, padx=10, pady=10)
-                if g == self.grid_location.get():
+                if g == self.grid_index.get():
                     grid_button.config(state='disabled')
             return None
         self.move_to_grid_location_button = tk.Button(
@@ -1635,14 +1633,14 @@ class GuiMicroscope:
                     gr, gc, p_mm = self.grid_preview_list[
                         self.current_grid_preview]
                     name = '%s%i'%(chr(ord('@') + gr + 1), gc + 1)
-                    self.grid_location.set(self.current_grid_preview)
+                    self.grid_index.set(self.current_grid_preview)
                 else:
                     gr, gc, tr, tc, p_mm = self.grid_preview_list[
                         self.current_grid_preview]
                     name = '%s%i_r%ic%i'%(
                         chr(ord('@') + gr + 1), gc + 1, tr, tc)
                     if (tr, tc) == (0, 0):
-                        self.grid_location.set(gr + gc)
+                        self.grid_index.set(gr + gc)
                 # move:
                 self._update_XY_stage_position(p_mm)
                 # check mode:
