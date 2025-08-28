@@ -275,8 +275,6 @@ class GuiMicroscope:
         frame.grid(row=9, column=0, padx=5, pady=5, sticky='n')
         button_width, button_height = 10, 1
         # focus slider:
-        ls_focus_adjust_min = -0.1
-        ls_focus_adjust_max = -ls_focus_adjust_min
         ls_focus_adjust_step = 0.005
         self.ls_focus_adjust_v = tkcw.CheckboxSliderSpinbox(
             frame,
@@ -285,22 +283,20 @@ class GuiMicroscope:
             slider_fast_update=True,
             slider_length=290,
             tickinterval=5,
-            min_value=ls_focus_adjust_min,
-            max_value=ls_focus_adjust_max,
+            min_value=-0.1,
+            max_value=0.1,
             default_value=0,
             increment=0.001,
             integers_only=False,
             row=0,
             width=5)
-        def _update_focus():
-            self.scope.apply_settings(
-                ls_focus_adjust_v=self.ls_focus_adjust_v.value.get())
+        def _update_focus(*args): # *args from trace not used
+            v = self.ls_focus_adjust_v.value.get()
+            self.scope.apply_settings(ls_focus_adjust_v=v)
             if self.running_scout_mode.get():
                 self._snap_and_display()
             return None
-        self.ls_focus_adjust_v.value.trace_add(
-            'write',
-            lambda var, index, mode: _update_focus())
+        self.ls_focus_adjust_v.value.trace_add('write', _update_focus)
         ls_focus_adjust_tip = Hovertip(
             self.ls_focus_adjust_v,
             "The 'focus_adjust' setting adjusts the position of the\n" +
@@ -354,15 +350,13 @@ class GuiMicroscope:
             integers_only=False,
             row=2,
             width=5)
-        def _update_dither():
-            self.scope.apply_settings(
-                ls_angular_dither_v=self.ls_angular_dither_v.value.get())
+        def _update_dither(*args): # *args from trace not used
+            v = self.ls_angular_dither_v.value.get()
+            self.scope.apply_settings(ls_angular_dither_v=v)
             if self.running_scout_mode.get():
                 self._snap_and_display()
             return None
-        self.ls_angular_dither_v.value.trace_add(
-            'write',
-            lambda var, index, mode: _update_dither())
+        self.ls_angular_dither_v.value.trace_add('write', _update_dither)
         ls_angular_dither_tip = Hovertip(
             self.ls_angular_dither_v,
             "The 'angular_dither' setting adjusts how much the light-sheet\n" +
