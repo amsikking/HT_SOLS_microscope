@@ -779,6 +779,141 @@ class GuiMicroscope:
         button_large_move_down.grid(row=4, column=1, padx=10, pady=10)
         return None
 
+    def init_Z_stage(self):
+        self.Z_stage_frame = tk.LabelFrame(self.root, text='Z STAGE', bd=6)
+        self.Z_stage_frame.grid(row=4, column=2, padx=5, pady=5, sticky='n')
+        button_width, button_height = 24, 2
+        limits_mm = (0, 30)     # range (adjust as needed)
+        limits_mmps = (0.2, 1)  # velocity (adjust as needed)
+        edge_limits_mm = (limits_mm[0] + 0.1, limits_mm[1] - 0.1)
+        # z stage popup:
+        z_stage_popup = tk.Toplevel()
+        z_stage_popup.title('Z STAGE')
+        x, y = self.root.winfo_x(), self.root.winfo_y() # center popup
+        z_stage_popup.geometry("+%d+%d" % (x + 800, y + 400))
+        z_stage_popup.withdraw()
+        z_stage_frame = tk.LabelFrame(z_stage_popup, text='Z STAGE', bd=6)
+        z_stage_frame.grid(padx=10, pady=10)
+        self.Z_Stage_moving = tk.BooleanVar()
+        # get position command:
+        def _get_position():
+            self.Z_stage_position_mm = (
+                self.scope.Z_stage.stage1.get_position_mm())
+            return None
+        # stop command:
+        def _stop():
+            self.scope.Z_stage.stop(mode='abrupt') # updates '.position_mm'
+            self.Z_stage_position_mm = self.scope.Z_stage.stage1.position_mm
+            self.Z_Stage_moving.set(0)
+            return None
+        # up:
+        def _move_up():
+            self.Z_Stage_moving.set(1)
+            self.scope.Z_stage.move_mm(
+                limits_mm[0], relative=False, block=False)
+            return None
+        button_up = tk.Button(
+            z_stage_frame,
+            text="MOVE UP",
+            height=button_height,
+            width=button_width)
+        button_up.grid(row=0, padx=10, pady=10)
+        button_up.bind("<ButtonPress>", lambda event: _move_up())
+        button_up.bind("<ButtonRelease>", lambda event: _stop())
+        # move fast:
+        def _move_fast():
+            if move_fast.get():
+                self.scope.Z_stage.set_velocity_mmps(limits_mmps[1])
+            else:
+                self.scope.Z_stage.set_velocity_mmps(limits_mmps[0])
+            return None
+        move_fast = tk.BooleanVar()
+        move_fast_checkbox = tk.Checkbutton(
+            z_stage_frame,
+            text='Move fast!',
+            variable=move_fast,
+            command=_move_fast)
+        move_fast_checkbox.grid(row=1, padx=10, pady=10)
+        # down:
+        def _move_down():
+            self.Z_Stage_moving.set(1)
+            self.scope.Z_stage.move_mm(
+                limits_mm[1], relative=False, block=False)
+            return None
+        button_down = tk.Button(
+            z_stage_frame,
+            text="MOVE DOWN",
+            height=button_height,
+            width=button_width)
+        button_down.grid(row=2, padx=10, pady=10)
+        button_down.bind("<ButtonPress>", lambda event: _move_down())
+        button_down.bind("<ButtonRelease>", lambda event: _stop())
+        # position:
+        run_update_position = tk.BooleanVar()
+        def _run_update_position():
+            Z_mm = self.Z_stage_position_mm
+            if edge_limits_mm[0] <= Z_mm <= edge_limits_mm[1]:
+                _get_position()
+            self.Z_stage_position_mm_text.set('%0.3f'%Z_mm)
+            if self.Z_Stage_moving.get():
+                if not self.last_acquire_task.is_alive():
+                    self._snap_and_display()
+            if run_update_position.get():
+                self.root.after(int(1e3/15), _run_update_position) # 15fps
+            return None
+        self.Z_stage_position_mm_text = tk.StringVar(value='None')
+        Z_stage_position_mm_text_frame = tk.LabelFrame(
+            z_stage_frame, text='Position (mm)')
+        Z_stage_position_mm_text_frame.grid(row=3, padx=10, pady=5)
+        Z_stage_position_mm_text_label = tk.Label(
+            Z_stage_position_mm_text_frame,
+            textvariable=self.Z_stage_position_mm_text,
+            bg='gainsboro',
+            width=20)
+        Z_stage_position_mm_text_label.grid(padx=5, pady=5)
+        # equalize:
+        def _equalize():
+            self.scope.Z_stage.equalize()
+            self._snap_and_display()
+            return None
+        button_equalize = tk.Button(
+            z_stage_frame,
+            text="EQUALIZE",
+            command=_equalize,
+            height=button_height,
+            width=button_width)
+        button_equalize.grid(row=4, padx=10, pady=10)
+        # popup open and close:
+        def _open_z_stage_popup():
+            _move_fast()
+            _get_position()
+            run_update_position.set(1)
+            _run_update_position()
+            z_stage_popup.deiconify()
+            z_stage_popup.grab_set() # force user to interact
+        def _close_z_stage_popup():
+            _equalize()
+            run_update_position.set(0)
+            z_stage_popup.withdraw()
+            z_stage_popup.grab_release()
+            return None
+        z_stage_popup.protocol("WM_DELETE_WINDOW", _close_z_stage_popup)
+        # move:
+        button_move_sample = tk.Button(
+            self.Z_stage_frame,
+            text="Move sample up/down",
+            command=_open_z_stage_popup,
+            width=button_width,
+            height=button_height)
+        button_move_sample.grid(row=0, column=0, padx=10, pady=10)
+        move_tip = Hovertip(
+            button_move_sample,
+            "The 'Z STAGE' is a course vertical motion device for moving\n" +
+            "the sample over a potentially large range (some mm) to\n" +
+            "approximately set the focus at the primary objective (±10um).\n" +
+            "NOTE: THIS CAN CRUSH THE OBJECTIVE AND SAMPLE!")
+        return None
+
     def init_autofocus(self):
         frame = tk.LabelFrame(self.root, text='AUTOFOCUS', bd=6)
         frame.grid(row=1, column=3, rowspan=2, padx=5, pady=5, sticky='ne')
@@ -927,141 +1062,6 @@ class GuiMicroscope:
             offset = self.scope.autofocus.offset_lens_position
             if offset != self.scope.autofocus._get_offset_lens_position():
                 self._snap_and_display()
-        return None
-
-    def init_Z_stage(self):
-        self.Z_stage_frame = tk.LabelFrame(self.root, text='Z STAGE', bd=6)
-        self.Z_stage_frame.grid(row=4, column=2, padx=5, pady=5, sticky='n')
-        button_width, button_height = 24, 2
-        limits_mm = (0, 30)     # range (adjust as needed)
-        limits_mmps = (0.2, 1)  # velocity (adjust as needed)
-        edge_limits_mm = (limits_mm[0] + 0.1, limits_mm[1] - 0.1)
-        # z stage popup:
-        z_stage_popup = tk.Toplevel()
-        z_stage_popup.title('Z STAGE')
-        x, y = self.root.winfo_x(), self.root.winfo_y() # center popup
-        z_stage_popup.geometry("+%d+%d" % (x + 800, y + 400))
-        z_stage_popup.withdraw()
-        z_stage_frame = tk.LabelFrame(z_stage_popup, text='Z STAGE', bd=6)
-        z_stage_frame.grid(padx=10, pady=10)
-        self.Z_Stage_moving = tk.BooleanVar()
-        # get position command:
-        def _get_position():
-            self.Z_stage_position_mm = (
-                self.scope.Z_stage.stage1.get_position_mm())
-            return None
-        # stop command:
-        def _stop():
-            self.scope.Z_stage.stop(mode='abrupt') # updates '.position_mm'
-            self.Z_stage_position_mm = self.scope.Z_stage.stage1.position_mm
-            self.Z_Stage_moving.set(0)
-            return None
-        # up:
-        def _move_up():
-            self.Z_Stage_moving.set(1)
-            self.scope.Z_stage.move_mm(
-                limits_mm[0], relative=False, block=False)
-            return None
-        button_up = tk.Button(
-            z_stage_frame,
-            text="MOVE UP",
-            height=button_height,
-            width=button_width)
-        button_up.grid(row=0, padx=10, pady=10)
-        button_up.bind("<ButtonPress>", lambda event: _move_up())
-        button_up.bind("<ButtonRelease>", lambda event: _stop())
-        # move fast:
-        def _move_fast():
-            if move_fast.get():
-                self.scope.Z_stage.set_velocity_mmps(limits_mmps[1])
-            else:
-                self.scope.Z_stage.set_velocity_mmps(limits_mmps[0])
-            return None
-        move_fast = tk.BooleanVar()
-        move_fast_checkbox = tk.Checkbutton(
-            z_stage_frame,
-            text='Move fast!',
-            variable=move_fast,
-            command=_move_fast)
-        move_fast_checkbox.grid(row=1, padx=10, pady=10)
-        # down:
-        def _move_down():
-            self.Z_Stage_moving.set(1)
-            self.scope.Z_stage.move_mm(
-                limits_mm[1], relative=False, block=False)
-            return None
-        button_down = tk.Button(
-            z_stage_frame,
-            text="MOVE DOWN",
-            height=button_height,
-            width=button_width)
-        button_down.grid(row=2, padx=10, pady=10)
-        button_down.bind("<ButtonPress>", lambda event: _move_down())
-        button_down.bind("<ButtonRelease>", lambda event: _stop())
-        # position:
-        run_update_position = tk.BooleanVar()
-        def _run_update_position():
-            Z_mm = self.Z_stage_position_mm
-            if edge_limits_mm[0] <= Z_mm <= edge_limits_mm[1]:
-                _get_position()
-            self.Z_stage_position_mm_text.set('%0.3f'%Z_mm)
-            if self.Z_Stage_moving.get():
-                if not self.last_acquire_task.is_alive():
-                    self._snap_and_display()
-            if run_update_position.get():
-                self.root.after(int(1e3/15), _run_update_position) # 15fps
-            return None
-        self.Z_stage_position_mm_text = tk.StringVar(value='None')
-        Z_stage_position_mm_text_frame = tk.LabelFrame(
-            z_stage_frame, text='Position (mm)')
-        Z_stage_position_mm_text_frame.grid(row=3, padx=10, pady=5)
-        Z_stage_position_mm_text_label = tk.Label(
-            Z_stage_position_mm_text_frame,
-            textvariable=self.Z_stage_position_mm_text,
-            bg='gainsboro',
-            width=20)
-        Z_stage_position_mm_text_label.grid(padx=5, pady=5)
-        # equalize:
-        def _equalize():
-            self.scope.Z_stage.equalize()
-            self._snap_and_display()
-            return None
-        button_equalize = tk.Button(
-            z_stage_frame,
-            text="EQUALIZE",
-            command=_equalize,
-            height=button_height,
-            width=button_width)
-        button_equalize.grid(row=4, padx=10, pady=10)
-        # popup open and close:
-        def _open_z_stage_popup():
-            _move_fast()
-            _get_position()
-            run_update_position.set(1)
-            _run_update_position()
-            z_stage_popup.deiconify()
-            z_stage_popup.grab_set() # force user to interact
-        def _close_z_stage_popup():
-            _equalize()
-            run_update_position.set(0)
-            z_stage_popup.withdraw()
-            z_stage_popup.grab_release()
-            return None
-        z_stage_popup.protocol("WM_DELETE_WINDOW", _close_z_stage_popup)
-        # move:
-        button_move_sample = tk.Button(
-            self.Z_stage_frame,
-            text="Move sample up/down",
-            command=_open_z_stage_popup,
-            width=button_width,
-            height=button_height)
-        button_move_sample.grid(row=0, column=0, padx=10, pady=10)
-        move_tip = Hovertip(
-            button_move_sample,
-            "The 'Z STAGE' is a course vertical motion device for moving\n" +
-            "the sample over a potentially large range (some mm) to\n" +
-            "approximately set the focus at the primary objective (±10um).\n" +
-            "NOTE: THIS CAN CRUSH THE OBJECTIVE AND SAMPLE!")
         return None
 
     def init_XY_stage(self):
@@ -1278,9 +1278,189 @@ class GuiMicroscope:
                 '%03i_'%folder_index + self.label_textbox.text)
         return folder_name
 
+    def init_tile_navigator(self):
+        frame = tk.LabelFrame(self.root, text='TILE NAVIGATOR', bd=6)
+        frame.grid(row=1, column=4, rowspan=2, padx=5, pady=5, sticky='n')
+        button_width, button_height = 25, 2
+        spinbox_width = 20
+        # tile array width:
+        self.tile_rc = tkcw.CheckboxSliderSpinbox(
+            frame,
+            label='Array height and width (tiles)',
+            checkbox_enabled=False,
+            slider_enabled=False,
+            min_value=2,
+            max_value=9,
+            default_value=2,
+            row=0,
+            width=spinbox_width)
+        tile_array_width_tip = Hovertip(
+            self.tile_rc,
+            "The 'Array height and width (tiles)' determines how many tiles\n" +
+            "the 'Start tile' button will generate. For example, 2 gives a\n" +
+            "2x2 array of tiles, 3 a 3x3 array, etc.")
+        # save data and position:
+        self.save_tile_data_and_position = tk.BooleanVar()
+        save_tile_data_and_position_button = tk.Checkbutton(
+            frame,
+            text='Save data and position',
+            variable=self.save_tile_data_and_position)
+        save_tile_data_and_position_button.grid(
+            row=1, column=0, padx=10, pady=10)
+        save_tile_data_and_position_tip = Hovertip(
+            save_tile_data_and_position_button,
+            "If 'Save data and position' is enabled then the 'Start tile'\n" +
+            "button will save the full data set (in addition to the preview\n" +
+            "data) and populate the 'POSITION LIST'.\n")
+        # start tile preview:
+        def _start_tile_preview():
+            print('\nTile preview -> started')
+            self._set_running_mode('tile_preview')
+            if self.volumes_per_buffer.value.get() != 1:
+                self.volumes_per_buffer.update_and_validate(1)
+            folder_name = self._get_folder_name() + '_tile'
+            # calculate move size:
+            X_move_mm = 1e-3 * self.width_px.value.get() * self.sample_px_um
+            Y_move_mm = 1e-3 * self.scan_range_um.value.get()
+            # generate tile list:
+            self.tile_list = []
+            for r in range(self.tile_rc.value.get()):
+                for c in range(self.tile_rc.value.get()):
+                    p_mm = (self.X_stage_position_mm - c * X_move_mm,
+                            self.Y_stage_position_mm + r * Y_move_mm)
+                    self.tile_list.append((r, c, p_mm))
+            self.current_tile = 0
+            def _run_tile_preview():
+                # update position:
+                r, c, p_mm = self.tile_list[self.current_tile]
+                self._update_XY_stage_position(p_mm)
+                # get tile:
+                name = "r%ic%i"%(r, c)
+                filename = name + '.tif'
+                preview_only = True
+                if self.save_tile_data_and_position.get():
+                    preview_only = False
+                    self._update_position_list()
+                self.scope.acquire(
+                    filename=filename,
+                    folder_name=folder_name,
+                    description=self.description_textbox.text,
+                    preview_only=preview_only).get_result()
+                tile_filename = (folder_name + '\\preview\\' + filename)
+                while not os.path.isfile(tile_filename):
+                    self.root.after(int(1e3/30)) # 30fps
+                tile = imread(tile_filename)
+                if len(tile.shape) == 2:
+                    tile = tile[np.newaxis,:] # add channels, no volumes                
+                shape = tile.shape
+                # add reference:
+                XY = (int(0.1 * min(shape[-2:])),
+                      shape[1] - int(0.15 * min(shape[-2:])))
+                font_size = int(0.1 * min(shape[-2:]))
+                font = ImageFont.truetype('arial.ttf', font_size)
+                for ch in range(shape[0]):
+                    # convert 2D image to PIL format for ImageDraw:
+                    t = Image.fromarray(tile[ch,:])
+                    ImageDraw.Draw(t).text(XY, name, fill=0, font=font)
+                    tile[ch,:] = t
+                # make base image:
+                if self.current_tile == 0:
+                    self.tile_preview = np.zeros(
+                        (shape[0],
+                         self.tile_rc.value.get() * shape[1],
+                         self.tile_rc.value.get() * shape[2]),
+                        'uint16')
+                # add current tile:
+                self.tile_preview[:,
+                                  r * shape[1]:(r + 1) * shape[1],
+                                  c * shape[2]:(c + 1) * shape[2]] = tile
+                # display:
+                self.scope.display.show_tile_preview(self.tile_preview)
+                if (self.running_tile_preview.get() and
+                    self.current_tile < len(self.tile_list) - 1): 
+                    self.current_tile += 1
+                    self.root.after(int(1e3/30), _run_tile_preview) # 30fps
+                else:
+                    self._set_running_mode('None')
+                    self.move_to_tile_button.config(state='normal')
+                    print('Tile preview -> finished\n')
+                return None
+            _run_tile_preview()
+            return None
+        self.running_tile_preview = tk.BooleanVar()
+        start_tile_preview_button = tk.Checkbutton(
+            frame,
+            text="Start tile",
+            variable=self.running_tile_preview,
+            command=_start_tile_preview,
+            indicatoron=0,
+            font=('Segoe UI', '10', 'italic'),
+            width=button_width,
+            height=button_height)
+        start_tile_preview_button.grid(row=2, column=0, padx=10, pady=10)
+        start_tile_tip = Hovertip(
+            start_tile_preview_button,
+            "The 'Start tile' button will start to generate previews for\n" +
+            "the tile array using the current XY position as the first\n" +
+            "tile (the top left position r0c0). Consider using 'Save data\n" +
+            "and position' for extra functionality.")        
+        # move to tile popup:
+        move_to_tile_popup = tk.Toplevel()
+        move_to_tile_popup.title('Move to tile')
+        x, y = self.root.winfo_x(), self.root.winfo_y() # center popup
+        move_to_tile_popup.geometry("+%d+%d" % (x + 800, y + 400))
+        move_to_tile_popup.withdraw()
+        def _close_move_to_tile_popup():
+            move_to_tile_popup.withdraw()
+            move_to_tile_popup.grab_release()
+            return None
+        move_to_tile_popup.protocol(
+            "WM_DELETE_WINDOW", _close_move_to_tile_popup)
+        # move to tile button:
+        def _move_to_tile():
+            move_to_tile_popup.deiconify()
+            move_to_tile_popup.grab_set() # force user to interact
+            # make buttons:
+            tile_buttons_frame = tk.LabelFrame(
+                move_to_tile_popup, text='XY TILES', bd=6)
+            tile_buttons_frame.grid(
+                row=0, column=1, rowspan=5, padx=10, pady=10)
+            def _move(tile):
+                self._update_XY_stage_position(self.tile_list[tile][2])
+                self._snap_and_display()
+                self.current_tile = tile
+                _close_move_to_tile_popup()
+                return None
+            for t in range(len(self.tile_list)):
+                r, c, p_mm = self.tile_list[t]
+                tile_button = tk.Button(
+                    tile_buttons_frame,
+                    text='r%ic%i'%(r, c),
+                    command=lambda tile=t: _move(tile),
+                    width=5,
+                    height=2)
+                tile_button.grid(row=r, column=c, padx=10, pady=10)
+                if t == self.current_tile:
+                    tile_button.config(state='disabled')
+            return None
+        self.move_to_tile_button = tk.Button(
+            frame,
+            text="Move to tile",
+            command=_move_to_tile,
+            width=button_width,
+            height=button_height)
+        self.move_to_tile_button.grid(row=4, column=0, padx=10, pady=10)
+        self.move_to_tile_button.config(state='disabled')
+        move_to_tile_tip = Hovertip(
+            self.move_to_tile_button,
+            "The 'Move to tile' button moves to the chosen tile location\n" +
+            "based on the absolute XY tile positions from the last tile\n" +
+            "routine.")
+        return None
+
     def init_grid_navigator(self):
         frame = tk.LabelFrame(self.root, text='GRID NAVIGATOR', bd=6)
-        frame.grid(row=1, column=4, rowspan=5, padx=5, pady=5, sticky='n')
+        frame.grid(row=1, column=5, rowspan=5, padx=5, pady=5, sticky='n')
         button_width, button_height = 25, 1
         spinbox_width = 20
         # load from file:
@@ -1742,575 +1922,6 @@ class GuiMicroscope:
             "the grid' for extra functionality.")
         return None
 
-    def init_tile_navigator(self):
-        frame = tk.LabelFrame(self.root, text='TILE NAVIGATOR', bd=6)
-        frame.grid(row=7, column=4, rowspan=2, padx=5, pady=5, sticky='n')
-        button_width, button_height = 25, 2
-        spinbox_width = 20
-        # tile array width:
-        self.tile_rc = tkcw.CheckboxSliderSpinbox(
-            frame,
-            label='Array height and width (tiles)',
-            checkbox_enabled=False,
-            slider_enabled=False,
-            min_value=2,
-            max_value=9,
-            default_value=2,
-            row=0,
-            width=spinbox_width)
-        tile_array_width_tip = Hovertip(
-            self.tile_rc,
-            "The 'Array height and width (tiles)' determines how many tiles\n" +
-            "the 'Start tile' button will generate. For example, 2 gives a\n" +
-            "2x2 array of tiles, 3 a 3x3 array, etc.")
-        # save data and position:
-        self.save_tile_data_and_position = tk.BooleanVar()
-        save_tile_data_and_position_button = tk.Checkbutton(
-            frame,
-            text='Save data and position',
-            variable=self.save_tile_data_and_position)
-        save_tile_data_and_position_button.grid(
-            row=1, column=0, padx=10, pady=10)
-        save_tile_data_and_position_tip = Hovertip(
-            save_tile_data_and_position_button,
-            "If 'Save data and position' is enabled then the 'Start tile'\n" +
-            "button will save the full data set (in addition to the preview\n" +
-            "data) and populate the 'POSITION LIST'.\n")
-        # start tile preview:
-        def _start_tile_preview():
-            print('\nTile preview -> started')
-            self._set_running_mode('tile_preview')
-            if self.volumes_per_buffer.value.get() != 1:
-                self.volumes_per_buffer.update_and_validate(1)
-            folder_name = self._get_folder_name() + '_tile'
-            # calculate move size:
-            X_move_mm = 1e-3 * self.width_px.value.get() * self.sample_px_um
-            Y_move_mm = 1e-3 * self.scan_range_um.value.get()
-            # generate tile list:
-            self.tile_list = []
-            for r in range(self.tile_rc.value.get()):
-                for c in range(self.tile_rc.value.get()):
-                    p_mm = (self.X_stage_position_mm - c * X_move_mm,
-                            self.Y_stage_position_mm + r * Y_move_mm)
-                    self.tile_list.append((r, c, p_mm))
-            self.current_tile = 0
-            def _run_tile_preview():
-                # update position:
-                r, c, p_mm = self.tile_list[self.current_tile]
-                self._update_XY_stage_position(p_mm)
-                # get tile:
-                name = "r%ic%i"%(r, c)
-                filename = name + '.tif'
-                preview_only = True
-                if self.save_tile_data_and_position.get():
-                    preview_only = False
-                    self._update_position_list()
-                self.scope.acquire(
-                    filename=filename,
-                    folder_name=folder_name,
-                    description=self.description_textbox.text,
-                    preview_only=preview_only).get_result()
-                tile_filename = (folder_name + '\\preview\\' + filename)
-                while not os.path.isfile(tile_filename):
-                    self.root.after(int(1e3/30)) # 30fps
-                tile = imread(tile_filename)
-                if len(tile.shape) == 2:
-                    tile = tile[np.newaxis,:] # add channels, no volumes                
-                shape = tile.shape
-                # add reference:
-                XY = (int(0.1 * min(shape[-2:])),
-                      shape[1] - int(0.15 * min(shape[-2:])))
-                font_size = int(0.1 * min(shape[-2:]))
-                font = ImageFont.truetype('arial.ttf', font_size)
-                for ch in range(shape[0]):
-                    # convert 2D image to PIL format for ImageDraw:
-                    t = Image.fromarray(tile[ch,:])
-                    ImageDraw.Draw(t).text(XY, name, fill=0, font=font)
-                    tile[ch,:] = t
-                # make base image:
-                if self.current_tile == 0:
-                    self.tile_preview = np.zeros(
-                        (shape[0],
-                         self.tile_rc.value.get() * shape[1],
-                         self.tile_rc.value.get() * shape[2]),
-                        'uint16')
-                # add current tile:
-                self.tile_preview[:,
-                                  r * shape[1]:(r + 1) * shape[1],
-                                  c * shape[2]:(c + 1) * shape[2]] = tile
-                # display:
-                self.scope.display.show_tile_preview(self.tile_preview)
-                if (self.running_tile_preview.get() and
-                    self.current_tile < len(self.tile_list) - 1): 
-                    self.current_tile += 1
-                    self.root.after(int(1e3/30), _run_tile_preview) # 30fps
-                else:
-                    self._set_running_mode('None')
-                    self.move_to_tile_button.config(state='normal')
-                    print('Tile preview -> finished\n')
-                return None
-            _run_tile_preview()
-            return None
-        self.running_tile_preview = tk.BooleanVar()
-        start_tile_preview_button = tk.Checkbutton(
-            frame,
-            text="Start tile",
-            variable=self.running_tile_preview,
-            command=_start_tile_preview,
-            indicatoron=0,
-            font=('Segoe UI', '10', 'italic'),
-            width=button_width,
-            height=button_height)
-        start_tile_preview_button.grid(row=2, column=0, padx=10, pady=10)
-        start_tile_tip = Hovertip(
-            start_tile_preview_button,
-            "The 'Start tile' button will start to generate previews for\n" +
-            "the tile array using the current XY position as the first\n" +
-            "tile (the top left position r0c0). Consider using 'Save data\n" +
-            "and position' for extra functionality.")        
-        # move to tile popup:
-        move_to_tile_popup = tk.Toplevel()
-        move_to_tile_popup.title('Move to tile')
-        x, y = self.root.winfo_x(), self.root.winfo_y() # center popup
-        move_to_tile_popup.geometry("+%d+%d" % (x + 800, y + 400))
-        move_to_tile_popup.withdraw()
-        def _close_move_to_tile_popup():
-            move_to_tile_popup.withdraw()
-            move_to_tile_popup.grab_release()
-            return None
-        move_to_tile_popup.protocol(
-            "WM_DELETE_WINDOW", _close_move_to_tile_popup)
-        # move to tile button:
-        def _move_to_tile():
-            move_to_tile_popup.deiconify()
-            move_to_tile_popup.grab_set() # force user to interact
-            # make buttons:
-            tile_buttons_frame = tk.LabelFrame(
-                move_to_tile_popup, text='XY TILES', bd=6)
-            tile_buttons_frame.grid(
-                row=0, column=1, rowspan=5, padx=10, pady=10)
-            def _move(tile):
-                self._update_XY_stage_position(self.tile_list[tile][2])
-                self._snap_and_display()
-                self.current_tile = tile
-                _close_move_to_tile_popup()
-                return None
-            for t in range(len(self.tile_list)):
-                r, c, p_mm = self.tile_list[t]
-                tile_button = tk.Button(
-                    tile_buttons_frame,
-                    text='r%ic%i'%(r, c),
-                    command=lambda tile=t: _move(tile),
-                    width=5,
-                    height=2)
-                tile_button.grid(row=r, column=c, padx=10, pady=10)
-                if t == self.current_tile:
-                    tile_button.config(state='disabled')
-            return None
-        self.move_to_tile_button = tk.Button(
-            frame,
-            text="Move to tile",
-            command=_move_to_tile,
-            width=button_width,
-            height=button_height)
-        self.move_to_tile_button.grid(row=4, column=0, padx=10, pady=10)
-        self.move_to_tile_button.config(state='disabled')
-        move_to_tile_tip = Hovertip(
-            self.move_to_tile_button,
-            "The 'Move to tile' button moves to the chosen tile location\n" +
-            "based on the absolute XY tile positions from the last tile\n" +
-            "routine.")
-        return None
-
-    def init_settings(self):
-        frame = tk.LabelFrame(self.root, text='SETTINGS (misc)', bd=6)
-        frame.grid(row=1, column=5, rowspan=5, padx=5, pady=5, sticky='n')
-        button_width, button_height = 25, 1
-        spinbox_width = 20
-        # load from file:
-        def _load_settings_from_file():
-            # get file from user:
-            file_path = tk.filedialog.askopenfilename(
-                parent=self.root,
-                initialdir=os.getcwd(),
-                title='Please choose a previous "metadata" file (.txt)')        
-            with open(file_path, 'r') as file:
-                metadata = file.read().splitlines()
-            # format into settings and values:
-            file_settings = {}
-            for data in metadata:
-                file_settings[data.split(':')[0]] = (
-                    data.split(':')[1:][0].lstrip())
-            # re-format strings from file settings for gui:
-            channels = file_settings[
-                'channels_per_slice'].strip('(').strip(')').split(',')
-            powers   = file_settings[
-                'power_per_channel'].strip('(').strip(')').split(',')
-            channels_per_slice, power_per_channel = [], []
-            for i, c in enumerate(channels):
-                if c == '': break # avoid bug from tuple with single entry
-                channels_per_slice.append(c.split("'")[1])
-                power_per_channel.append(int(powers[i]))
-            # turn off all illumination:
-            self.power_tl.checkbox_value.set(0)
-            self.power_405.checkbox_value.set(0)
-            self.power_488.checkbox_value.set(0)
-            self.power_561.checkbox_value.set(0)
-            self.power_640.checkbox_value.set(0)
-            # apply file settings to gui:
-            for i, channel in enumerate(channels_per_slice):
-                if channel == 'LED':
-                    self.power_tl.checkbox_value.set(1)
-                    self.power_tl.update_and_validate(power_per_channel[i])
-                if channel == '405':
-                    self.power_405.checkbox_value.set(1)
-                    self.power_405.update_and_validate(power_per_channel[i])
-                if channel == '488':
-                    self.power_488.checkbox_value.set(1)
-                    self.power_488.update_and_validate(power_per_channel[i])
-                if channel == '561':
-                    self.power_561.checkbox_value.set(1)
-                    self.power_561.update_and_validate(power_per_channel[i])
-                if channel == '640':
-                    self.power_640.checkbox_value.set(1)
-                    self.power_640.update_and_validate(power_per_channel[i])
-            self.emission_filter.set(file_settings['emission_filter'])
-            self.illumination_time_us.update_and_validate(
-                int(file_settings['illumination_time_us']))
-            self.height_px.update_and_validate(int(file_settings['height_px']))
-            self.width_px.update_and_validate(
-                int(file_settings['width_px']))
-            self.voxel_aspect_ratio.update_and_validate(
-                int(round(float(file_settings['voxel_aspect_ratio']))))
-            self.scan_range_um.update_and_validate(
-                int(round(float(file_settings['scan_range_um']))))
-            self.volumes_per_buffer.update_and_validate(
-                int(file_settings['volumes_per_buffer']))
-            self.sample_ri.update_and_validate(
-                float(file_settings['sample_ri']))
-            self.ls_focus_adjust.update_and_validate(
-                1e3 * float(file_settings['ls_focus_adjust_v']))
-            self.ls_angular_dither.update_and_validate(
-                float(file_settings['ls_angular_dither_v']))
-            return None
-        load_from_file_button = tk.Button(
-            frame,
-            text="Load from file",
-            command=_load_settings_from_file,
-            font=('Segoe UI', '10', 'underline'),
-            width=button_width,
-            height=button_height)
-        load_from_file_button.grid(row=0, column=0, padx=10, pady=10)
-        load_from_file_tip = Hovertip(
-            load_from_file_button,
-            "Use the 'Load from file' button to select a '.txt' file from\n" +
-            "the 'metadata' folder of a previous acquisition and load\n" +
-            "these settings into the GUI. The loaded settings are:\n" +
-            "- 'TRANSMITTED LIGHT'.\n" +
-            "- 'LASER BOX'.\n" +
-            "- 'DICHROIC MIRROR'.\n" +
-            "- 'FILTER WHEEL'.\n" +
-            "- 'CAMERA'.\n" +
-            "- 'GALVO'.\n" +
-            "- 'Volumes per acquire'.\n" +
-            "NOTE: 'FOCUS PIEZO', 'XY STAGE', 'Folder label' and \n" +
-            "'Description' are not loaded. To load previous XYZ\n" +
-            "positions use the 'POSITION LIST' panel.")
-        # label textbox:
-        self.label_textbox = tkcw.Textbox(
-            frame,
-            label='Folder label',
-            default_text='ht_sols',
-            row=1,
-            width=spinbox_width,
-            height=1)
-        label_textbox_tip = Hovertip(
-            self.label_textbox,
-            "The label that will be used for the data folder (after the\n" +
-            "date and time stamp). Edit to preference")
-        # description textbox:
-        self.description_textbox = tkcw.Textbox(
-            frame,
-            label='Description',
-            default_text='what are you doing?',
-            row=2,
-            width=spinbox_width,
-            height=3)
-        description_textbox_tip = Hovertip(
-            self.description_textbox,
-            "The text that will be recorded in the metadata '.txt' file\n" +
-            "(along with the microscope settings for that acquisition).\n" +
-            "Describe what you are doing here.")       
-        # volumes spinbox:
-        self.volumes_per_buffer = tkcw.CheckboxSliderSpinbox(
-            frame,
-            label='Volumes per acquire',
-            checkbox_enabled=False,
-            slider_enabled=False,
-            min_value=1,
-            max_value=1e3,
-            default_value=1,
-            row=3,
-            width=spinbox_width)
-        self.volumes_per_buffer.value.trace_add(
-            'write',
-            lambda var, index, mode: self.scope.apply_settings(
-                volumes_per_buffer=self.volumes_per_buffer.value.get()))
-        volumes_per_buffer_tip = Hovertip(
-            self.volumes_per_buffer,
-            "In short: How many back to back (as fast as possible) volumes\n" +
-            "did you want for a given acquisition?\n" +
-            "(If you are not sure or don't care then leave this as 1!)\n" +
-            "In detail: increasing this number (above 1 volume) pre-loads\n" +
-            "more acquisitions onto the analogue out (AO) card. This has\n" +
-            "pro's and con's.\n" +
-            "Pros:\n" +
-            "- It allows successive volumes to be taken with minimal \n" +
-            "latency.\n" +
-            "- The timing for successive volumes can be 'us' precise.\n" +
-            "Cons:\n" +
-            "- It takes time to 'load' and 'play' a volume. More volumes\n" +
-            "takes more time, and once requested this operation cannot\n"
-            "be cancelled.\n" +
-            "- The data from a single 'play' of the AO card is recording\n" +
-            "into a single file. More volumes is more data and a bigger\n" +
-            "file. It's easy to end up with a huge file that is not a\n" +
-            "'legal' .tiff (<~4GB) and is tricky to manipulate.\n")
-        # loop over positions:
-        self.loop_over_position_list = tk.BooleanVar()
-        loop_over_position_list_button = tk.Checkbutton(
-            frame,
-            text='Loop over position list',
-            variable=self.loop_over_position_list)
-        loop_over_position_list_button.grid(
-            row=4, column=0, padx=10, pady=10, sticky='w')
-        loop_over_position_list_tip = Hovertip(
-            loop_over_position_list_button,
-            "If checked, the 'Run acquire' button will loop over the XYZ\n" +
-            "positions stored in the 'POSITION LIST'.\n" +
-            "NOTE: it can take a significant amount of time to image \n" +
-            "many positions so this should be taken into consideration \n" +
-            "(especially for a time series).")
-        # acquire number spinbox:
-        self.acquire_number = tkcw.CheckboxSliderSpinbox(
-            frame,
-            label='Acquire number',
-            checkbox_enabled=False,
-            slider_enabled=False,
-            min_value=1,
-            max_value=1e6,
-            default_value=1,
-            row=5,
-            width=spinbox_width)
-        acquire_number_spinbox_tip = Hovertip(
-            self.acquire_number,
-            "How many acquisitions did you want when you press\n" +
-            "the 'Run acquire' button?\n" +
-            "NOTE: there is no immediate limit here, but data \n" +
-            "accumulation and thermal drift can limit in practice.")
-        # delay spinbox:
-        self.delay_s = tkcw.CheckboxSliderSpinbox(
-            frame,
-            label='Inter-acquire delay (s) >=',
-            checkbox_enabled=False,
-            slider_enabled=False,
-            min_value=0,
-            max_value=3600,
-            default_value=0,
-            row=6,
-            width=spinbox_width)
-        delay_spinbox_tip = Hovertip(
-            self.delay_s,
-            "How long do you want to wait between acquisitions?\n" +
-            "NOTE: the GUI will attempt to achieve the requested interval.\n" +
-            "However, if the acquisition (which may include multiple \n" +
-            "colors/volumes/positions) takes longer than the requested\n" +
-            "delay then it will simply run as fast as it can.\n")        
-        return None
-
-    def init_settings_output(self):
-        frame = tk.LabelFrame(self.root, text='SETTINGS OUTPUT', bd=6)
-        frame.grid(row=7, column=5, rowspan=3, padx=5, pady=5, sticky='n')
-        width = 24
-        # volumes per second:
-        def _update_volumes_per_s_text(*args):
-            self.volumes_per_s_text.set('%0.3f'%self.volumes_per_s.get())
-            return None        
-        self.volumes_per_s = tk.DoubleVar()
-        self.volumes_per_s.trace_add('write', _update_volumes_per_s_text)
-        self.volumes_per_s_text = tk.StringVar(value='None')
-        volumes_per_s_frame = tk.LabelFrame(frame, text='Volumes per second')
-        volumes_per_s_frame.grid(row=0, padx=10, pady=5)
-        volumes_per_s_label = tk.Label(
-            volumes_per_s_frame,
-            textvariable=self.volumes_per_s_text,
-            bg='gainsboro',
-            width=width)
-        volumes_per_s_label.grid(padx=5, pady=5)
-        volumes_per_s_label_tip = Hovertip(
-            volumes_per_s_frame,
-            "Shows the 'Volumes per second' (Vps) based on the settings\n" +
-            "that were last applied to the microscope.\n" +
-            "NOTE: this is the volumetric rate for the acquisition (i.e.\n" +
-            "during the analogue out 'play') and does reflect any delays\n" +
-            "or latency between acquisitions.")
-        # data memory:
-        def _update_data_memory_text(*args):
-            data_memory_gb = 1e-9 * self.data_bytes.get()
-            max_memory_gb = 1e-9 * self.max_bytes_per_buffer
-            memory_pct = 100 * data_memory_gb / max_memory_gb
-            text = '%0.3f (%0.2f%%)'%(data_memory_gb, memory_pct)
-            self.data_memory_text.set(text)
-            self.data_memory_text_label.config(bg='gainsboro')
-            if self.data_buffer_exceeded.get():
-                self.data_memory_text_label.config(bg='red')
-            return None
-        self.data_bytes = tk.IntVar()
-        self.data_bytes.trace_add('write', _update_data_memory_text)
-        self.data_buffer_exceeded = tk.BooleanVar()
-        self.data_memory_text = tk.StringVar(value='None')
-        data_memory_text_frame = tk.LabelFrame(
-            frame, text='Data memory (GB)')
-        data_memory_text_frame.grid(row=1, padx=10, pady=5)
-        self.data_memory_text_label = tk.Label(
-            data_memory_text_frame,
-            textvariable=self.data_memory_text,
-            bg='gainsboro',
-            width=width)
-        self.data_memory_text_label.grid(padx=5, pady=5)
-        self.data_memory_text_label_tip = Hovertip(
-            data_memory_text_frame,
-            "Shows the 'data buffer memory' (GB) that the microscope\n" +
-            "will need to run the settings that were last applied.\n" +
-            "NOTE: this can be useful for montoring resources and \n" +
-            "avoiding memory limits.")
-        # preview memory:
-        def _update_preview_memory_text(*args):
-            preview_memory_gb = 1e-9 * self.preview_bytes.get()
-            max_memory_gb = 1e-9 * self.max_bytes_per_buffer
-            memory_pct = 100 * preview_memory_gb / max_memory_gb
-            text = '%0.3f (%0.2f%%)'%(preview_memory_gb, memory_pct)
-            self.preview_memory_text.set(text)
-            self.preview_memory_text_label.config(bg='gainsboro')
-            if self.preview_buffer_exceeded.get():
-                self.preview_memory_text_label.config(bg='red')
-            return None
-        self.preview_bytes = tk.IntVar()
-        self.preview_bytes.trace_add('write', _update_preview_memory_text)
-        self.preview_buffer_exceeded = tk.BooleanVar()
-        self.preview_memory_text = tk.StringVar(value='None')
-        preview_memory_text_frame = tk.LabelFrame(
-            frame, text='Preview memory (GB)')
-        preview_memory_text_frame.grid(row=2, padx=10, pady=5)
-        self.preview_memory_text_label = tk.Label(
-            preview_memory_text_frame,
-            textvariable=self.preview_memory_text,
-            bg='gainsboro',
-            width=width)
-        self.preview_memory_text_label.grid(padx=5, pady=5)
-        self.preview_memory_text_label_tip = Hovertip(
-            preview_memory_text_frame,
-            "Shows the 'preview buffer memory' (GB) that the microscope\n" +
-            "will need to run the settings that were last applied.\n" +
-            "NOTE: this can be useful for montoring resources and \n" +
-            "avoiding memory limits.")
-        # total memory:
-        def _update_total_memory_text(*args):
-            total_memory_gb = 1e-9 * self.total_bytes.get()
-            max_memory_gb = 1e-9 * self.max_allocated_bytes
-            memory_pct = 100 * total_memory_gb / max_memory_gb
-            text = '%0.3f (%0.2f%%)'%(total_memory_gb, memory_pct)
-            self.total_memory_text.set(text)
-            self.total_memory_text_label.config(bg='gainsboro')
-            if self.total_bytes_exceeded.get():
-                self.total_memory_text_label.config(bg='red')
-            return None
-        self.total_bytes = tk.IntVar()
-        self.total_bytes.trace_add('write', _update_total_memory_text)
-        self.total_bytes_exceeded = tk.BooleanVar()
-        self.total_memory_text = tk.StringVar(value='None')
-        total_memory_text_frame = tk.LabelFrame(
-            frame, text='Total memory (GB)')
-        total_memory_text_frame.grid(row=3, padx=10, pady=5)
-        self.total_memory_text_label = tk.Label(
-            total_memory_text_frame,
-            textvariable=self.total_memory_text,
-            bg='gainsboro',
-            width=width)
-        self.total_memory_text_label.grid(padx=5, pady=5)
-        self.total_memory_text_label_tip = Hovertip(
-            total_memory_text_frame,
-            "Shows the 'total memory' (GB) that the microscope\n" +
-            "will need to run the settings that were last applied.\n" +
-            "NOTE: this can be useful for montoring resources and \n" +
-            "avoiding memory limits.")
-        # total storage:
-        def _update_total_storage_text(*args):
-            positions = 1
-            if self.loop_over_position_list.get():
-                positions = max(len(self.XY_stage_position_list), 1)
-            acquires = self.acquire_number.value.get()
-            data_gb = 1e-9 * self.data_bytes.get()
-            preview_gb = 1e-9 * self.preview_bytes.get()
-            total_storage_gb = (data_gb + preview_gb) * positions * acquires
-            self.total_storage_text.set('%0.3f'%total_storage_gb)
-            return None
-        self.total_bytes.trace_add('write', _update_total_storage_text)
-        self.total_storage_text = tk.StringVar(value='None')
-        total_storage_text_frame = tk.LabelFrame(
-            frame, text='Total storage (GB)')
-        total_storage_text_frame.grid(row=4, padx=10, pady=5)
-        self.total_storage_text_label = tk.Label(
-            total_storage_text_frame,
-            textvariable=self.total_storage_text,
-            bg='gainsboro',
-            width=width)
-        self.total_storage_text_label.grid(padx=5, pady=5)
-        self.total_storage_text_label_tip = Hovertip(
-            total_storage_text_frame,
-            "Shows the 'total storage' (GB) that the microscope will \n" +
-            "need to save the data if 'Run acquire' is pressed (based \n" +
-            "on the settings that were last applied).\n" +
-            "NOTE: this can be useful for montoring resources and \n" +
-            "avoiding storage limits.")
-        # min time:
-        def _update_min_time_text(*args):
-            positions = 1
-            if self.loop_over_position_list.get():
-                positions = max(len(self.XY_stage_position_list), 1)
-            acquires = self.acquire_number.value.get()
-            min_acquire_time_s = self.buffer_time_s.get() * positions
-            min_total_time_s = min_acquire_time_s * acquires
-            delay_s = self.delay_s.value.get()
-            if delay_s > min_acquire_time_s:
-                min_total_time_s = ( # start -> n-1 delays -> final acquire
-                    delay_s * (acquires - 1) + min_acquire_time_s)
-            text = '%0.6f (%0.0f min)'%(
-                min_total_time_s, (min_total_time_s / 60))
-            self.min_time_text.set(text)
-            return None
-        self.buffer_time_s = tk.DoubleVar()
-        self.buffer_time_s.trace_add('write', _update_min_time_text)
-        self.min_time_text = tk.StringVar(value='None')
-        min_time_text_frame = tk.LabelFrame(
-            frame, text='Minimum acquire time (s)')
-        min_time_text_frame.grid(row=5, padx=10, pady=5)
-        self.min_time_text_label = tk.Label(
-            min_time_text_frame,
-            textvariable=self.min_time_text,
-            bg='gainsboro',
-            width=width)
-        self.min_time_text_label.grid(padx=5, pady=5)
-        self.min_time_text_label_tip = Hovertip(
-            min_time_text_frame,
-            "Shows the 'Minimum acquire time (s)' that the microscope will\n" +
-            "need if 'Run acquire' is pressed (based on the settings that\n" +
-            "were last applied).\n" +
-            "NOTE: this value does not take into account the 'move time'\n" +
-            "when using the 'Loop over position list' option (so the actual\n" +
-            "time will be significantly more).")
-        return None
-
     def init_position_list(self):
         frame = tk.LabelFrame(self.root, text='POSITION LIST', bd=6)
         frame.grid(row=1, column=6, rowspan=5, padx=5, pady=5, sticky='n')
@@ -2571,6 +2182,395 @@ class GuiMicroscope:
         with open(self.session_folder +
                   "XY_stage_position_list.txt", "a") as file:
             file.write(str(self.XY_stage_position_list[-1]) + ',\n')
+        return None
+
+    def init_settings_output(self):
+        frame = tk.LabelFrame(self.root, text='SETTINGS OUTPUT', bd=6)
+        frame.grid(row=7, column=4, rowspan=3, padx=5, pady=5, sticky='n')
+        width = 24
+        # volumes per second:
+        def _update_volumes_per_s_text(*args):
+            self.volumes_per_s_text.set('%0.3f'%self.volumes_per_s.get())
+            return None        
+        self.volumes_per_s = tk.DoubleVar()
+        self.volumes_per_s.trace_add('write', _update_volumes_per_s_text)
+        self.volumes_per_s_text = tk.StringVar(value='None')
+        volumes_per_s_frame = tk.LabelFrame(frame, text='Volumes per second')
+        volumes_per_s_frame.grid(row=0, padx=10, pady=5)
+        volumes_per_s_label = tk.Label(
+            volumes_per_s_frame,
+            textvariable=self.volumes_per_s_text,
+            bg='gainsboro',
+            width=width)
+        volumes_per_s_label.grid(padx=5, pady=5)
+        volumes_per_s_label_tip = Hovertip(
+            volumes_per_s_frame,
+            "Shows the 'Volumes per second' (Vps) based on the settings\n" +
+            "that were last applied to the microscope.\n" +
+            "NOTE: this is the volumetric rate for the acquisition (i.e.\n" +
+            "during the analogue out 'play') and does reflect any delays\n" +
+            "or latency between acquisitions.")
+        # data memory:
+        def _update_data_memory_text(*args):
+            data_memory_gb = 1e-9 * self.data_bytes.get()
+            max_memory_gb = 1e-9 * self.max_bytes_per_buffer
+            memory_pct = 100 * data_memory_gb / max_memory_gb
+            text = '%0.3f (%0.2f%%)'%(data_memory_gb, memory_pct)
+            self.data_memory_text.set(text)
+            self.data_memory_text_label.config(bg='gainsboro')
+            if self.data_buffer_exceeded.get():
+                self.data_memory_text_label.config(bg='red')
+            return None
+        self.data_bytes = tk.IntVar()
+        self.data_bytes.trace_add('write', _update_data_memory_text)
+        self.data_buffer_exceeded = tk.BooleanVar()
+        self.data_memory_text = tk.StringVar(value='None')
+        data_memory_text_frame = tk.LabelFrame(
+            frame, text='Data memory (GB)')
+        data_memory_text_frame.grid(row=1, padx=10, pady=5)
+        self.data_memory_text_label = tk.Label(
+            data_memory_text_frame,
+            textvariable=self.data_memory_text,
+            bg='gainsboro',
+            width=width)
+        self.data_memory_text_label.grid(padx=5, pady=5)
+        self.data_memory_text_label_tip = Hovertip(
+            data_memory_text_frame,
+            "Shows the 'data buffer memory' (GB) that the microscope\n" +
+            "will need to run the settings that were last applied.\n" +
+            "NOTE: this can be useful for montoring resources and \n" +
+            "avoiding memory limits.")
+        # preview memory:
+        def _update_preview_memory_text(*args):
+            preview_memory_gb = 1e-9 * self.preview_bytes.get()
+            max_memory_gb = 1e-9 * self.max_bytes_per_buffer
+            memory_pct = 100 * preview_memory_gb / max_memory_gb
+            text = '%0.3f (%0.2f%%)'%(preview_memory_gb, memory_pct)
+            self.preview_memory_text.set(text)
+            self.preview_memory_text_label.config(bg='gainsboro')
+            if self.preview_buffer_exceeded.get():
+                self.preview_memory_text_label.config(bg='red')
+            return None
+        self.preview_bytes = tk.IntVar()
+        self.preview_bytes.trace_add('write', _update_preview_memory_text)
+        self.preview_buffer_exceeded = tk.BooleanVar()
+        self.preview_memory_text = tk.StringVar(value='None')
+        preview_memory_text_frame = tk.LabelFrame(
+            frame, text='Preview memory (GB)')
+        preview_memory_text_frame.grid(row=2, padx=10, pady=5)
+        self.preview_memory_text_label = tk.Label(
+            preview_memory_text_frame,
+            textvariable=self.preview_memory_text,
+            bg='gainsboro',
+            width=width)
+        self.preview_memory_text_label.grid(padx=5, pady=5)
+        self.preview_memory_text_label_tip = Hovertip(
+            preview_memory_text_frame,
+            "Shows the 'preview buffer memory' (GB) that the microscope\n" +
+            "will need to run the settings that were last applied.\n" +
+            "NOTE: this can be useful for montoring resources and \n" +
+            "avoiding memory limits.")
+        # total memory:
+        def _update_total_memory_text(*args):
+            total_memory_gb = 1e-9 * self.total_bytes.get()
+            max_memory_gb = 1e-9 * self.max_allocated_bytes
+            memory_pct = 100 * total_memory_gb / max_memory_gb
+            text = '%0.3f (%0.2f%%)'%(total_memory_gb, memory_pct)
+            self.total_memory_text.set(text)
+            self.total_memory_text_label.config(bg='gainsboro')
+            if self.total_bytes_exceeded.get():
+                self.total_memory_text_label.config(bg='red')
+            return None
+        self.total_bytes = tk.IntVar()
+        self.total_bytes.trace_add('write', _update_total_memory_text)
+        self.total_bytes_exceeded = tk.BooleanVar()
+        self.total_memory_text = tk.StringVar(value='None')
+        total_memory_text_frame = tk.LabelFrame(
+            frame, text='Total memory (GB)')
+        total_memory_text_frame.grid(row=3, padx=10, pady=5)
+        self.total_memory_text_label = tk.Label(
+            total_memory_text_frame,
+            textvariable=self.total_memory_text,
+            bg='gainsboro',
+            width=width)
+        self.total_memory_text_label.grid(padx=5, pady=5)
+        self.total_memory_text_label_tip = Hovertip(
+            total_memory_text_frame,
+            "Shows the 'total memory' (GB) that the microscope\n" +
+            "will need to run the settings that were last applied.\n" +
+            "NOTE: this can be useful for montoring resources and \n" +
+            "avoiding memory limits.")
+        # total storage:
+        def _update_total_storage_text(*args):
+            positions = 1
+            if self.loop_over_position_list.get():
+                positions = max(len(self.XY_stage_position_list), 1)
+            acquires = self.acquire_number.value.get()
+            data_gb = 1e-9 * self.data_bytes.get()
+            preview_gb = 1e-9 * self.preview_bytes.get()
+            total_storage_gb = (data_gb + preview_gb) * positions * acquires
+            self.total_storage_text.set('%0.3f'%total_storage_gb)
+            return None
+        self.total_bytes.trace_add('write', _update_total_storage_text)
+        self.total_storage_text = tk.StringVar(value='None')
+        total_storage_text_frame = tk.LabelFrame(
+            frame, text='Total storage (GB)')
+        total_storage_text_frame.grid(row=4, padx=10, pady=5)
+        self.total_storage_text_label = tk.Label(
+            total_storage_text_frame,
+            textvariable=self.total_storage_text,
+            bg='gainsboro',
+            width=width)
+        self.total_storage_text_label.grid(padx=5, pady=5)
+        self.total_storage_text_label_tip = Hovertip(
+            total_storage_text_frame,
+            "Shows the 'total storage' (GB) that the microscope will \n" +
+            "need to save the data if 'Run acquire' is pressed (based \n" +
+            "on the settings that were last applied).\n" +
+            "NOTE: this can be useful for montoring resources and \n" +
+            "avoiding storage limits.")
+        # min time:
+        def _update_min_time_text(*args):
+            positions = 1
+            if self.loop_over_position_list.get():
+                positions = max(len(self.XY_stage_position_list), 1)
+            acquires = self.acquire_number.value.get()
+            min_acquire_time_s = self.buffer_time_s.get() * positions
+            min_total_time_s = min_acquire_time_s * acquires
+            delay_s = self.delay_s.value.get()
+            if delay_s > min_acquire_time_s:
+                min_total_time_s = ( # start -> n-1 delays -> final acquire
+                    delay_s * (acquires - 1) + min_acquire_time_s)
+            text = '%0.6f (%0.0f min)'%(
+                min_total_time_s, (min_total_time_s / 60))
+            self.min_time_text.set(text)
+            return None
+        self.buffer_time_s = tk.DoubleVar()
+        self.buffer_time_s.trace_add('write', _update_min_time_text)
+        self.min_time_text = tk.StringVar(value='None')
+        min_time_text_frame = tk.LabelFrame(
+            frame, text='Minimum acquire time (s)')
+        min_time_text_frame.grid(row=5, padx=10, pady=5)
+        self.min_time_text_label = tk.Label(
+            min_time_text_frame,
+            textvariable=self.min_time_text,
+            bg='gainsboro',
+            width=width)
+        self.min_time_text_label.grid(padx=5, pady=5)
+        self.min_time_text_label_tip = Hovertip(
+            min_time_text_frame,
+            "Shows the 'Minimum acquire time (s)' that the microscope will\n" +
+            "need if 'Run acquire' is pressed (based on the settings that\n" +
+            "were last applied).\n" +
+            "NOTE: this value does not take into account the 'move time'\n" +
+            "when using the 'Loop over position list' option (so the actual\n" +
+            "time will be significantly more).")
+        return None
+
+    def init_settings(self):
+        frame = tk.LabelFrame(self.root, text='SETTINGS (misc)', bd=6)
+        frame.grid(row=7, column=5, rowspan=5, padx=5, pady=5, sticky='n')
+        button_width, button_height = 25, 1
+        spinbox_width = 20
+        # load from file:
+        def _load_settings_from_file():
+            # get file from user:
+            file_path = tk.filedialog.askopenfilename(
+                parent=self.root,
+                initialdir=os.getcwd(),
+                title='Please choose a previous "metadata" file (.txt)')        
+            with open(file_path, 'r') as file:
+                metadata = file.read().splitlines()
+            # format into settings and values:
+            file_settings = {}
+            for data in metadata:
+                file_settings[data.split(':')[0]] = (
+                    data.split(':')[1:][0].lstrip())
+            # re-format strings from file settings for gui:
+            channels = file_settings[
+                'channels_per_slice'].strip('(').strip(')').split(',')
+            powers   = file_settings[
+                'power_per_channel'].strip('(').strip(')').split(',')
+            channels_per_slice, power_per_channel = [], []
+            for i, c in enumerate(channels):
+                if c == '': break # avoid bug from tuple with single entry
+                channels_per_slice.append(c.split("'")[1])
+                power_per_channel.append(int(powers[i]))
+            # turn off all illumination:
+            self.power_tl.checkbox_value.set(0)
+            self.power_405.checkbox_value.set(0)
+            self.power_488.checkbox_value.set(0)
+            self.power_561.checkbox_value.set(0)
+            self.power_640.checkbox_value.set(0)
+            # apply file settings to gui:
+            for i, channel in enumerate(channels_per_slice):
+                if channel == 'LED':
+                    self.power_tl.checkbox_value.set(1)
+                    self.power_tl.update_and_validate(power_per_channel[i])
+                if channel == '405':
+                    self.power_405.checkbox_value.set(1)
+                    self.power_405.update_and_validate(power_per_channel[i])
+                if channel == '488':
+                    self.power_488.checkbox_value.set(1)
+                    self.power_488.update_and_validate(power_per_channel[i])
+                if channel == '561':
+                    self.power_561.checkbox_value.set(1)
+                    self.power_561.update_and_validate(power_per_channel[i])
+                if channel == '640':
+                    self.power_640.checkbox_value.set(1)
+                    self.power_640.update_and_validate(power_per_channel[i])
+            self.emission_filter.set(file_settings['emission_filter'])
+            self.illumination_time_us.update_and_validate(
+                int(file_settings['illumination_time_us']))
+            self.height_px.update_and_validate(int(file_settings['height_px']))
+            self.width_px.update_and_validate(
+                int(file_settings['width_px']))
+            self.voxel_aspect_ratio.update_and_validate(
+                int(round(float(file_settings['voxel_aspect_ratio']))))
+            self.scan_range_um.update_and_validate(
+                int(round(float(file_settings['scan_range_um']))))
+            self.volumes_per_buffer.update_and_validate(
+                int(file_settings['volumes_per_buffer']))
+            self.sample_ri.update_and_validate(
+                float(file_settings['sample_ri']))
+            self.ls_focus_adjust.update_and_validate(
+                1e3 * float(file_settings['ls_focus_adjust_v']))
+            self.ls_angular_dither.update_and_validate(
+                float(file_settings['ls_angular_dither_v']))
+            return None
+        load_from_file_button = tk.Button(
+            frame,
+            text="Load from file",
+            command=_load_settings_from_file,
+            font=('Segoe UI', '10', 'underline'),
+            width=button_width,
+            height=button_height)
+        load_from_file_button.grid(row=0, column=0, padx=10, pady=10)
+        load_from_file_tip = Hovertip(
+            load_from_file_button,
+            "Use the 'Load from file' button to select a '.txt' file from\n" +
+            "the 'metadata' folder of a previous acquisition and load\n" +
+            "these settings into the GUI. The loaded settings are:\n" +
+            "- 'TRANSMITTED LIGHT'.\n" +
+            "- 'LASER BOX'.\n" +
+            "- 'DICHROIC MIRROR'.\n" +
+            "- 'FILTER WHEEL'.\n" +
+            "- 'CAMERA'.\n" +
+            "- 'GALVO'.\n" +
+            "- 'Volumes per acquire'.\n" +
+            "NOTE: 'FOCUS PIEZO', 'XY STAGE', 'Folder label' and \n" +
+            "'Description' are not loaded. To load previous XYZ\n" +
+            "positions use the 'POSITION LIST' panel.")
+        # label textbox:
+        self.label_textbox = tkcw.Textbox(
+            frame,
+            label='Folder label',
+            default_text='ht_sols',
+            row=1,
+            width=spinbox_width,
+            height=1)
+        label_textbox_tip = Hovertip(
+            self.label_textbox,
+            "The label that will be used for the data folder (after the\n" +
+            "date and time stamp). Edit to preference")
+        # description textbox:
+        self.description_textbox = tkcw.Textbox(
+            frame,
+            label='Description',
+            default_text='what are you doing?',
+            row=2,
+            width=spinbox_width,
+            height=3)
+        description_textbox_tip = Hovertip(
+            self.description_textbox,
+            "The text that will be recorded in the metadata '.txt' file\n" +
+            "(along with the microscope settings for that acquisition).\n" +
+            "Describe what you are doing here.")       
+        # volumes spinbox:
+        self.volumes_per_buffer = tkcw.CheckboxSliderSpinbox(
+            frame,
+            label='Volumes per acquire',
+            checkbox_enabled=False,
+            slider_enabled=False,
+            min_value=1,
+            max_value=1e3,
+            default_value=1,
+            row=3,
+            width=spinbox_width)
+        self.volumes_per_buffer.value.trace_add(
+            'write',
+            lambda var, index, mode: self.scope.apply_settings(
+                volumes_per_buffer=self.volumes_per_buffer.value.get()))
+        volumes_per_buffer_tip = Hovertip(
+            self.volumes_per_buffer,
+            "In short: How many back to back (as fast as possible) volumes\n" +
+            "did you want for a given acquisition?\n" +
+            "(If you are not sure or don't care then leave this as 1!)\n" +
+            "In detail: increasing this number (above 1 volume) pre-loads\n" +
+            "more acquisitions onto the analogue out (AO) card. This has\n" +
+            "pro's and con's.\n" +
+            "Pros:\n" +
+            "- It allows successive volumes to be taken with minimal \n" +
+            "latency.\n" +
+            "- The timing for successive volumes can be 'us' precise.\n" +
+            "Cons:\n" +
+            "- It takes time to 'load' and 'play' a volume. More volumes\n" +
+            "takes more time, and once requested this operation cannot\n"
+            "be cancelled.\n" +
+            "- The data from a single 'play' of the AO card is recording\n" +
+            "into a single file. More volumes is more data and a bigger\n" +
+            "file. It's easy to end up with a huge file that is not a\n" +
+            "'legal' .tiff (<~4GB) and is tricky to manipulate.\n")
+        # loop over positions:
+        self.loop_over_position_list = tk.BooleanVar()
+        loop_over_position_list_button = tk.Checkbutton(
+            frame,
+            text='Loop over position list',
+            variable=self.loop_over_position_list)
+        loop_over_position_list_button.grid(
+            row=4, column=0, padx=10, pady=10, sticky='w')
+        loop_over_position_list_tip = Hovertip(
+            loop_over_position_list_button,
+            "If checked, the 'Run acquire' button will loop over the XYZ\n" +
+            "positions stored in the 'POSITION LIST'.\n" +
+            "NOTE: it can take a significant amount of time to image \n" +
+            "many positions so this should be taken into consideration \n" +
+            "(especially for a time series).")
+        # acquire number spinbox:
+        self.acquire_number = tkcw.CheckboxSliderSpinbox(
+            frame,
+            label='Acquire number',
+            checkbox_enabled=False,
+            slider_enabled=False,
+            min_value=1,
+            max_value=1e6,
+            default_value=1,
+            row=5,
+            width=spinbox_width)
+        acquire_number_spinbox_tip = Hovertip(
+            self.acquire_number,
+            "How many acquisitions did you want when you press\n" +
+            "the 'Run acquire' button?\n" +
+            "NOTE: there is no immediate limit here, but data \n" +
+            "accumulation and thermal drift can limit in practice.")
+        # delay spinbox:
+        self.delay_s = tkcw.CheckboxSliderSpinbox(
+            frame,
+            label='Inter-acquire delay (s) >=',
+            checkbox_enabled=False,
+            slider_enabled=False,
+            min_value=0,
+            max_value=3600,
+            default_value=0,
+            row=6,
+            width=spinbox_width)
+        delay_spinbox_tip = Hovertip(
+            self.delay_s,
+            "How long do you want to wait between acquisitions?\n" +
+            "NOTE: the GUI will attempt to achieve the requested interval.\n" +
+            "However, if the acquisition (which may include multiple \n" +
+            "colors/volumes/positions) takes longer than the requested\n" +
+            "delay then it will simply run as fast as it can.\n")        
         return None
 
     def init_acquire(self):
