@@ -36,15 +36,15 @@ class GuiMicroscope:
         self.init_sample_ri()
         self.init_focus_piezo()
         self.init_Z_stage()
-        self.init_XY_stage()
         self.init_autofocus()
+        self.init_XY_stage()
         self.init_projection_angle()
         # load microscope GUI's and quit:
-        self.init_grid_navigator()  # navigates an XY grid of points
         self.init_tile_navigator()  # generates and navigates XY tiles
-        self.init_settings()        # collects settings from GUI
-        self.init_settings_output() # shows output from settings
+        self.init_grid_navigator()  # navigates an XY grid of points
         self.init_position_list()   # navigates position lists
+        self.init_settings_output() # shows output from settings
+        self.init_settings()        # collects settings from GUI
         self.init_acquire()         # microscope methods
         self.init_running_mode()    # toggles between different modes
         # optionally initialize microscope:
