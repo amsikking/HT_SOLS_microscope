@@ -2315,7 +2315,7 @@ class GuiMicroscope:
         frame = tk.LabelFrame(self.root, text='POSITION LIST', bd=6)
         frame.grid(row=1, column=6, rowspan=5, padx=5, pady=5, sticky='n')
         button_width, button_height = 25, 1
-        spinbox_width = 20
+        width = 20
         # set list defaults:
         self.focus_piezo_position_list = []
         self.XY_stage_position_list = []
@@ -2356,8 +2356,7 @@ class GuiMicroscope:
                 for i in range(len(XY_stage_position_list)):
                     file.write(str(XY_stage_position_list[i]) + ',\n')
             # update gui:
-            self.total_positions.update_and_validate(
-                len(XY_stage_position_list))
+            self.total_positions.set(len(XY_stage_position_list))
             return None
         load_from_folder_button = tk.Button(
             frame,
@@ -2386,8 +2385,8 @@ class GuiMicroscope:
                 self.session_folder + "XY_stage_position_list.txt", "w"):
                 pass
             # update gui:
-            self.total_positions.update_and_validate(0)
-            self.current_position.update_and_validate(0)
+            self.total_positions.set(0)
+            self.current_position.set(0)
             return None
         delete_all_positions_button = tk.Button(
             frame,
@@ -2404,9 +2403,9 @@ class GuiMicroscope:
             "NOTE: this operation cannot be reversed.")
         # delete current:
         def _delete_current_position():
-            if self.total_positions.value.get() == 0:
+            if self.total_positions.get() == 0:
                 return
-            i = self.current_position.value.get() - 1
+            i = self.current_position.get() - 1
             self.focus_piezo_position_list.pop(i)
             self.XY_stage_position_list.pop(i)
             # update files:
@@ -2419,9 +2418,8 @@ class GuiMicroscope:
                 for i in range(len(self.XY_stage_position_list)):
                     file.write(str(self.XY_stage_position_list[i]) + ',\n')
             # update gui:
-            self.total_positions.update_and_validate(
-                len(self.XY_stage_position_list))
-            self.current_position.update_and_validate(i)
+            self.total_positions.set(len(self.XY_stage_position_list))
+            self.current_position.set(i)
             return None
         delete_current_position_button = tk.Button(
             frame,
@@ -2437,26 +2435,24 @@ class GuiMicroscope:
             "the associated .txt files in the 'sols_gui_session' folder.\n" +
             "NOTE: this operation cannot be reversed.")
         # total positions:
-        self.total_positions = tkcw.CheckboxSliderSpinbox(
-            frame,
-            label='Total positions',
-            checkbox_enabled=False,
-            slider_enabled=False,
-            min_value=0,
-            max_value=1e6,
-            default_value=0,
-            row=3,
-            width=spinbox_width)
-        self.total_positions.spinbox.config(state='disabled')
-        total_positions_spinbox_tip = Hovertip(
-            self.total_positions,
+        self.total_positions = tk.IntVar()
+        total_positions_frame = tk.LabelFrame(frame, text='Total positions')
+        total_positions_frame.grid(row=3, padx=10, pady=5)
+        total_positions_label = tk.Label(
+            total_positions_frame,
+            textvariable=self.total_positions,
+            bg='white',
+            width=width)
+        total_positions_label.grid(padx=5, pady=5)
+        total_positions_tip = Hovertip(
+            total_positions_frame,
             "The 'Total positions' displays the total number of positions\n" +
             "currently stored in the position list (both in the GUI and the\n" +
             "associated .txt files in the 'sols_gui_session' folder.\n")
         # utility function:
         def _update_position(how):
-            current_position = self.current_position.value.get()
-            total_positions  = self.total_positions.value.get()
+            current_position = self.current_position.get()
+            total_positions  = self.total_positions.get()
             if total_positions == 0:
                 return
             # check which direction:
@@ -2482,7 +2478,7 @@ class GuiMicroscope:
             self._update_XY_stage_position(
                 self.XY_stage_position_list[p - 1])
             # update gui and snap:
-            self.current_position.update_and_validate(p)
+            self.current_position.set(p)
             self._snap_and_display()
             # re-apply scout mode:
             self.running_scout_mode.set(self.scout_mode_status.get())
@@ -2515,19 +2511,17 @@ class GuiMicroscope:
             "'XY STAGE' to the previous (n - 1) position in the position\n" +
             "list.")
         # current position:
-        self.current_position = tkcw.CheckboxSliderSpinbox(
-            frame,
-            label='Current position',
-            checkbox_enabled=False,
-            slider_enabled=False,
-            min_value=0,
-            max_value=1e6,
-            default_value=0,
-            row=6,
-            width=spinbox_width)
-        self.current_position.spinbox.config(state='disabled')
-        current_position_spinbox_tip = Hovertip(
-            self.current_position,
+        self.current_position = tk.IntVar()
+        current_position_frame = tk.LabelFrame(frame, text='Current position')
+        current_position_frame.grid(row=6, padx=10, pady=5)
+        current_position_label = tk.Label(
+            current_position_frame,
+            textvariable=self.current_position,
+            bg='white',
+            width=width)
+        current_position_label.grid(padx=5, pady=5)
+        current_position_tip = Hovertip(
+            current_position_frame,
             "The 'Current position' displays the current position in the\n" +
             "position list based on the last update to the position list\n" +
             "or move request in the 'POSITION LIST' panel.\n" +
@@ -2568,8 +2562,8 @@ class GuiMicroscope:
                                             self.Y_stage_position_mm])
         # update gui:
         positions = len(self.XY_stage_position_list)
-        self.total_positions.update_and_validate(positions)
-        self.current_position.update_and_validate(positions)
+        self.total_positions.set(positions)
+        self.current_position.set(positions)
         # write to file:
         with open(self.session_folder +
                   "focus_piezo_position_list.txt", "a") as file:
@@ -2751,16 +2745,14 @@ class GuiMicroscope:
                                 self.acquire_position])
                     self._update_XY_stage_position(
                         self.XY_stage_position_list[self.acquire_position])
-                    self.current_position.update_and_validate(
-                        self.acquire_position + 1)
+                    self.current_position.set(self.acquire_position + 1)
                     self.scope.acquire(
                         filename='%06i_p%06i.tif'%(
                             self.acquire_count, self.acquire_position),
                         folder_name=self.folder_name,
                         description=self.description_textbox.text,
                         preview_only=self.preview_only.get())
-                    if self.acquire_position < (
-                        self.total_positions.value.get() - 1):
+                    if self.acquire_position < self.total_positions.get() - 1:
                         self.acquire_position +=1
                     else:
                         self.acquire_position = 0
