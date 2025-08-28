@@ -2123,134 +2123,121 @@ class GuiMicroscope:
     def init_settings_output(self):
         frame = tk.LabelFrame(self.root, text='SETTINGS OUTPUT', bd=6)
         frame.grid(row=7, column=5, rowspan=3, padx=5, pady=5, sticky='n')
-        button_width, button_height = 25, 2
-        spinbox_width = 20
-        # volumes per second textbox:
+        width = 24
+        # volumes per second:
+        def _update_volumes_per_s_text(*args):
+            self.volumes_per_s_text.set('%0.3f'%self.volumes_per_s.get())
+            return None        
         self.volumes_per_s = tk.DoubleVar()
-        volumes_per_s_textbox = tkcw.Textbox(
-            frame,
-            label='Volumes per second',
-            default_text='None',
-            row=0,
-            width=spinbox_width,
-            height=1)
-        def _update_volumes_per_s():            
-            text = '%0.3f'%self.volumes_per_s.get()
-            volumes_per_s_textbox.textbox.delete('1.0', 'end')
-            volumes_per_s_textbox.textbox.insert('1.0', text)
-            return None
-        self.volumes_per_s.trace_add(
-            'write',
-            lambda var, index, mode: _update_volumes_per_s())
-        volumes_per_s_textbox_tip = Hovertip(
-            volumes_per_s_textbox,
+        self.volumes_per_s.trace_add('write', _update_volumes_per_s_text)
+        self.volumes_per_s_text = tk.StringVar(value='None')
+        volumes_per_s_frame = tk.LabelFrame(frame, text='Volumes per second')
+        volumes_per_s_frame.grid(row=0, padx=10, pady=5)
+        volumes_per_s_label = tk.Label(
+            volumes_per_s_frame,
+            textvariable=self.volumes_per_s_text,
+            bg='white',
+            width=width)
+        volumes_per_s_label.grid(padx=5, pady=5)
+        volumes_per_s_label_tip = Hovertip(
+            volumes_per_s_frame,
             "Shows the 'Volumes per second' (Vps) based on the settings\n" +
             "that were last applied to the microscope.\n" +
             "NOTE: this is the volumetric rate for the acquisition (i.e.\n" +
             "during the analogue out 'play') and does reflect any delays\n" +
             "or latency between acquisitions.")
-        # data memory textbox:
-        self.data_bytes = tk.IntVar()
-        self.data_buffer_exceeded = tk.BooleanVar()
-        data_memory_textbox = tkcw.Textbox(
-            frame,
-            label='Data memory (GB)',
-            default_text='None',
-            row=1,
-            width=spinbox_width,
-            height=1)
-        data_memory_textbox.textbox.tag_add('color', '1.0', 'end')
-        def _update_data_memory():
+        # data memory:
+        def _update_data_memory_text(*args):
             data_memory_gb = 1e-9 * self.data_bytes.get()
             max_memory_gb = 1e-9 * self.max_bytes_per_buffer
             memory_pct = 100 * data_memory_gb / max_memory_gb
-            text = '%0.3f (%0.2f%% max)'%(data_memory_gb, memory_pct)
-            data_memory_textbox.textbox.delete('1.0', 'end')
-            bg = 'white'
-            if self.data_buffer_exceeded.get(): bg = 'red'
-            data_memory_textbox.textbox.tag_config('color', background=bg)
-            data_memory_textbox.textbox.insert('1.0', text, 'color')
+            text = '%0.3f (%0.2f%%)'%(data_memory_gb, memory_pct)
+            self.data_memory_text.set(text)
+            self.data_memory_text_label.config(bg='white')
+            if self.data_buffer_exceeded.get():
+                self.data_memory_text_label.config(bg='red')
             return None
-        self.data_bytes.trace_add(
-            'write',
-            lambda var, index, mode: _update_data_memory())
-        data_memory_textbox_tip = Hovertip(
-            data_memory_textbox,
+        self.data_bytes = tk.IntVar()
+        self.data_bytes.trace_add('write', _update_data_memory_text)
+        self.data_buffer_exceeded = tk.BooleanVar()
+        self.data_memory_text = tk.StringVar(value='None')
+        data_memory_text_frame = tk.LabelFrame(
+            frame, text='Data memory (GB)')
+        data_memory_text_frame.grid(row=1, padx=10, pady=5)
+        self.data_memory_text_label = tk.Label(
+            data_memory_text_frame,
+            textvariable=self.data_memory_text,
+            bg='white',
+            width=width)
+        self.data_memory_text_label.grid(padx=5, pady=5)
+        self.data_memory_text_label_tip = Hovertip(
+            data_memory_text_frame,
             "Shows the 'data buffer memory' (GB) that the microscope\n" +
             "will need to run the settings that were last applied.\n" +
             "NOTE: this can be useful for montoring resources and \n" +
             "avoiding memory limits.")
-        # preview memory textbox:
-        self.preview_bytes = tk.IntVar()
-        self.preview_buffer_exceeded = tk.BooleanVar()
-        preview_memory_textbox = tkcw.Textbox(
-            frame,
-            label='Preview memory (GB)',
-            default_text='None',
-            row=2,
-            width=spinbox_width,
-            height=1)
-        preview_memory_textbox.textbox.tag_add('color', '1.0', 'end')
-        def _update_preview_memory():
+        # preview memory:
+        def _update_preview_memory_text(*args):
             preview_memory_gb = 1e-9 * self.preview_bytes.get()
             max_memory_gb = 1e-9 * self.max_bytes_per_buffer
             memory_pct = 100 * preview_memory_gb / max_memory_gb
-            text = '%0.3f (%0.2f%% max)'%(preview_memory_gb, memory_pct)
-            preview_memory_textbox.textbox.delete('1.0', 'end')
-            bg = 'white'
-            if self.preview_buffer_exceeded.get(): bg = 'red'
-            preview_memory_textbox.textbox.tag_config('color', background=bg)
-            preview_memory_textbox.textbox.insert('1.0', text, 'color')
+            text = '%0.3f (%0.2f%%)'%(preview_memory_gb, memory_pct)
+            self.preview_memory_text.set(text)
+            self.preview_memory_text_label.config(bg='white')
+            if self.preview_buffer_exceeded.get():
+                self.preview_memory_text_label.config(bg='red')
             return None
-        self.preview_bytes.trace_add(
-            'write',
-            lambda var, index, mode: _update_preview_memory())
-        preview_memory_textbox_tip = Hovertip(
-            preview_memory_textbox,
+        self.preview_bytes = tk.IntVar()
+        self.preview_bytes.trace_add('write', _update_preview_memory_text)
+        self.preview_buffer_exceeded = tk.BooleanVar()
+        self.preview_memory_text = tk.StringVar(value='None')
+        preview_memory_text_frame = tk.LabelFrame(
+            frame, text='Preview memory (GB)')
+        preview_memory_text_frame.grid(row=2, padx=10, pady=5)
+        self.preview_memory_text_label = tk.Label(
+            preview_memory_text_frame,
+            textvariable=self.preview_memory_text,
+            bg='white',
+            width=width)
+        self.preview_memory_text_label.grid(padx=5, pady=5)
+        self.preview_memory_text_label_tip = Hovertip(
+            preview_memory_text_frame,
             "Shows the 'preview buffer memory' (GB) that the microscope\n" +
             "will need to run the settings that were last applied.\n" +
             "NOTE: this can be useful for montoring resources and \n" +
             "avoiding memory limits.")
-        # total memory textbox:
-        self.total_bytes = tk.IntVar()
-        self.total_bytes_exceeded = tk.BooleanVar()
-        total_memory_textbox = tkcw.Textbox(
-            frame,
-            label='Total memory (GB)',
-            default_text='None',
-            row=3,
-            width=spinbox_width,
-            height=1)
-        total_memory_textbox.textbox.tag_add('color', '1.0', 'end')
-        def _update_total_memory():
+        # total memory:
+        def _update_total_memory_text(*args):
             total_memory_gb = 1e-9 * self.total_bytes.get()
             max_memory_gb = 1e-9 * self.max_allocated_bytes
             memory_pct = 100 * total_memory_gb / max_memory_gb
-            text = '%0.3f (%0.2f%% max)'%(total_memory_gb, memory_pct)
-            total_memory_textbox.textbox.delete('1.0', 'end')
-            bg = 'white'
-            if self.total_bytes_exceeded.get(): bg = 'red'
-            total_memory_textbox.textbox.tag_config('color', background=bg)
-            total_memory_textbox.textbox.insert('1.0', text, 'color')
+            text = '%0.3f (%0.2f%%)'%(total_memory_gb, memory_pct)
+            self.total_memory_text.set(text)
+            self.total_memory_text_label.config(bg='white')
+            if self.total_bytes_exceeded.get():
+                self.total_memory_text_label.config(bg='red')
             return None
-        self.total_bytes.trace_add(
-            'write',
-            lambda var, index, mode: _update_total_memory())
-        total_memory_textbox_tip = Hovertip(
-            total_memory_textbox,
+        self.total_bytes = tk.IntVar()
+        self.total_bytes.trace_add('write', _update_total_memory_text)
+        self.total_bytes_exceeded = tk.BooleanVar()
+        self.total_memory_text = tk.StringVar(value='None')
+        total_memory_text_frame = tk.LabelFrame(
+            frame, text='Total memory (GB)')
+        total_memory_text_frame.grid(row=3, padx=10, pady=5)
+        self.total_memory_text_label = tk.Label(
+            total_memory_text_frame,
+            textvariable=self.total_memory_text,
+            bg='white',
+            width=width)
+        self.total_memory_text_label.grid(padx=5, pady=5)
+        self.total_memory_text_label_tip = Hovertip(
+            total_memory_text_frame,
             "Shows the 'total memory' (GB) that the microscope\n" +
             "will need to run the settings that were last applied.\n" +
             "NOTE: this can be useful for montoring resources and \n" +
             "avoiding memory limits.")
-        # total storage textbox:
-        total_storage_textbox = tkcw.Textbox(
-            frame,
-            label='Total storage (GB)',
-            default_text='None',
-            row=4,
-            width=spinbox_width,
-            height=1)
-        def _update_total_storage():
+        # total storage:
+        def _update_total_storage_text(*args):
             positions = 1
             if self.loop_over_position_list.get():
                 positions = max(len(self.XY_stage_position_list), 1)
@@ -2258,30 +2245,28 @@ class GuiMicroscope:
             data_gb = 1e-9 * self.data_bytes.get()
             preview_gb = 1e-9 * self.preview_bytes.get()
             total_storage_gb = (data_gb + preview_gb) * positions * acquires
-            text = '%0.3f'%total_storage_gb
-            total_storage_textbox.textbox.delete('1.0', 'end')
-            total_storage_textbox.textbox.insert('1.0', text)
+            self.total_storage_text.set('%0.3f'%total_storage_gb)
             return None
-        self.total_bytes.trace_add(
-            'write',
-            lambda var, index, mode: _update_total_storage())
-        total_storage_textbox_tip = Hovertip(
-            total_storage_textbox,
+        self.total_bytes.trace_add('write', _update_total_storage_text)
+        self.total_storage_text = tk.StringVar(value='None')
+        total_storage_text_frame = tk.LabelFrame(
+            frame, text='Total storage (GB)')
+        total_storage_text_frame.grid(row=4, padx=10, pady=5)
+        self.total_storage_text_label = tk.Label(
+            total_storage_text_frame,
+            textvariable=self.total_storage_text,
+            bg='white',
+            width=width)
+        self.total_storage_text_label.grid(padx=5, pady=5)
+        self.total_storage_text_label_tip = Hovertip(
+            total_storage_text_frame,
             "Shows the 'total storage' (GB) that the microscope will \n" +
             "need to save the data if 'Run acquire' is pressed (based \n" +
             "on the settings that were last applied).\n" +
             "NOTE: this can be useful for montoring resources and \n" +
             "avoiding storage limits.")
-        # min time textbox:
-        self.buffer_time_s = tk.DoubleVar()
-        min_time_textbox = tkcw.Textbox(
-            frame,
-            label='Minimum acquire time (s)',
-            default_text='None',
-            row=5,
-            width=spinbox_width,
-            height=1)
-        def _update_min_time():
+        # min time:
+        def _update_min_time_text(*args):
             positions = 1
             if self.loop_over_position_list.get():
                 positions = max(len(self.XY_stage_position_list), 1)
@@ -2294,14 +2279,22 @@ class GuiMicroscope:
                     delay_s * (acquires - 1) + min_acquire_time_s)
             text = '%0.6f (%0.0f min)'%(
                 min_total_time_s, (min_total_time_s / 60))
-            min_time_textbox.textbox.delete('1.0', 'end')
-            min_time_textbox.textbox.insert('1.0', text)
+            self.min_time_text.set(text)
             return None
-        self.buffer_time_s.trace_add(
-            'write',
-            lambda var, index, mode: _update_min_time())
-        min_time_textbox_tip = Hovertip(
-            min_time_textbox,
+        self.buffer_time_s = tk.DoubleVar()
+        self.buffer_time_s.trace_add('write', _update_min_time_text)
+        self.min_time_text = tk.StringVar(value='None')
+        min_time_text_frame = tk.LabelFrame(
+            frame, text='Minimum acquire time (s)')
+        min_time_text_frame.grid(row=5, padx=10, pady=5)
+        self.min_time_text_label = tk.Label(
+            min_time_text_frame,
+            textvariable=self.min_time_text,
+            bg='white',
+            width=width)
+        self.min_time_text_label.grid(padx=5, pady=5)
+        self.min_time_text_label_tip = Hovertip(
+            min_time_text_frame,
             "Shows the 'Minimum acquire time (s)' that the microscope will\n" +
             "need if 'Run acquire' is pressed (based on the settings that\n" +
             "were last applied).\n" +
