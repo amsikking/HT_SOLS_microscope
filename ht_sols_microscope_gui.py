@@ -947,12 +947,13 @@ class GuiMicroscope:
         self.Z_Stage_moving = tk.BooleanVar()
         # get position command:
         def _get_position():
-            self.Z_stage_mm = self.scope.Z_stage.stage1.get_position_mm()
+            self.Z_stage_position_mm = (
+                self.scope.Z_stage.stage1.get_position_mm())
             return None
         # stop command:
         def _stop():
             self.scope.Z_stage.stop(mode='abrupt') # updates '.position_mm'
-            self.Z_stage_mm = self.scope.Z_stage.stage1.position_mm
+            self.Z_stage_position_mm = self.scope.Z_stage.stage1.position_mm
             self.Z_Stage_moving.set(0)
             return None
         # up:
@@ -1000,19 +1001,26 @@ class GuiMicroscope:
         # position:
         run_update_position = tk.BooleanVar()
         def _run_update_position():
-            if edge_limits_mm[0] <= self.Z_stage_mm <= edge_limits_mm[1]:
+            Z_mm = self.Z_stage_position_mm
+            if edge_limits_mm[0] <= Z_mm <= edge_limits_mm[1]:
                 _get_position()
-            position_textbox.textbox.delete('1.0', 'end')
-            position_textbox.textbox.insert('1.0', 'Z=%0.3f'%self.Z_stage_mm)
+            self.Z_stage_position_mm_text.set('%0.3f'%Z_mm)
             if self.Z_Stage_moving.get():
                 if not self.last_acquire_task.is_alive():
                     self._snap_and_display()
             if run_update_position.get():
                 self.root.after(int(1e3/15), _run_update_position) # 15fps
             return None
-        position_textbox = tkcw.Textbox(
-            z_stage_frame, label='position (mm)', height=1, width=20)
-        position_textbox.grid(row=3, padx=10, pady=10)
+        self.Z_stage_position_mm_text = tk.StringVar(value='None')
+        Z_stage_position_mm_text_frame = tk.LabelFrame(
+            z_stage_frame, text='Position (mm)')
+        Z_stage_position_mm_text_frame.grid(row=3, padx=10, pady=5)
+        Z_stage_position_mm_text_label = tk.Label(
+            Z_stage_position_mm_text_frame,
+            textvariable=self.Z_stage_position_mm_text,
+            bg='white',
+            width=20)
+        Z_stage_position_mm_text_label.grid(padx=5, pady=5)
         # equalize:
         def _equalize():
             self.scope.Z_stage.equalize()
