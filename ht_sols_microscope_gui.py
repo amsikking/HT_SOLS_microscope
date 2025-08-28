@@ -60,7 +60,7 @@ class GuiMicroscope:
             # make mandatory call to 'apply_settings':
             self.scope.apply_settings(
                 projection_mode      = self.projection_mode.get(),
-                projection_angle_deg = self.projection_angle.value.get(),
+                projection_angle_deg = self.projection_angle_deg.value.get(),
                 channels_per_slice   = ('LED',),
                 power_per_channel    = (self.power_tl.value.get(),),
                 emission_filter      = self.emission_filter.get(),
@@ -71,8 +71,8 @@ class GuiMicroscope:
                 scan_range_um        = self.scan_range_um.value.get(),
                 volumes_per_buffer   = self.volumes_per_buffer.value.get(),
                 sample_ri            = self.sample_ri.value.get(),
-                ls_focus_adjust_v    = 1e3 * self.ls_focus_adjust.value.get(),
-                ls_angular_dither_v  = self.ls_angular_dither.value.get(),
+                ls_focus_adjust_v    = self.ls_focus_adjust_v.value.get(),
+                ls_angular_dither_v  = self.ls_angular_dither_v.value.get(),
                 ).get_result() # finish
             # get objective1 info:
             self.objective1_name.set(self.scope.objective1_name)
@@ -283,34 +283,34 @@ class GuiMicroscope:
         frame.grid(row=9, column=0, padx=5, pady=5, sticky='n')
         button_width, button_height = 10, 1
         # focus slider:
-        ls_focus_adjust_min = -100
+        ls_focus_adjust_min = -0.1
         ls_focus_adjust_max = -ls_focus_adjust_min
-        ls_focus_adjust_step = 5
-        self.ls_focus_adjust = tkcw.CheckboxSliderSpinbox(
+        ls_focus_adjust_step = 0.005
+        self.ls_focus_adjust_v = tkcw.CheckboxSliderSpinbox(
             frame,
-            label='focus adjust (mV)',
+            label='focus adjust (V)',
             checkbox_enabled=False,
             slider_fast_update=True,
             slider_length=290,
-            tickinterval=10,
+            tickinterval=5,
             min_value=ls_focus_adjust_min,
             max_value=ls_focus_adjust_max,
             default_value=0,
-            increment=1,
+            increment=0.001,
             integers_only=False,
             row=0,
             width=5)
         def _update_focus():
             self.scope.apply_settings(
-                ls_focus_adjust_v=1e-3*self.ls_focus_adjust.value.get())
+                ls_focus_adjust_v=self.ls_focus_adjust_v.value.get())
             if self.running_scout_mode.get():
                 self._snap_and_display()
             return None
-        self.ls_focus_adjust.value.trace_add(
+        self.ls_focus_adjust_v.value.trace_add(
             'write',
             lambda var, index, mode: _update_focus())
         ls_focus_adjust_tip = Hovertip(
-            self.ls_focus_adjust,
+            self.ls_focus_adjust_v,
             "The 'focus_adjust' setting adjusts the position of the\n" +
             "light-sheet with respect to the focal plane. This can help\n" +
             "improve resolution and contrast between different samples\n" +
@@ -318,9 +318,9 @@ class GuiMicroscope:
         # -ve button:
         button_ls_focus_adjust_negative = tk.Button(
             frame,
-            text="-%i"%ls_focus_adjust_step,
-            command=lambda: self.ls_focus_adjust.update_and_validate(
-                self.ls_focus_adjust.value.get() - ls_focus_adjust_step),
+            text="-%0.3f"%ls_focus_adjust_step,
+            command=lambda: self.ls_focus_adjust_v.update_and_validate(
+                self.ls_focus_adjust_v.value.get() - ls_focus_adjust_step),
             width=button_width,
             height=button_height)
         button_ls_focus_adjust_negative.grid(
@@ -329,7 +329,7 @@ class GuiMicroscope:
         button_ls_focus_adjust_zero = tk.Button(
             frame,
             text="zero",
-            command=lambda: self.ls_focus_adjust.update_and_validate(0),
+            command=lambda: self.ls_focus_adjust_v.update_and_validate(0),
             width=button_width,
             height=button_height)
         button_ls_focus_adjust_zero.grid(
@@ -337,9 +337,9 @@ class GuiMicroscope:
         # +ve button:
         button_ls_focus_adjust_positive = tk.Button(
             frame,
-            text="%i"%ls_focus_adjust_step,
-            command=lambda: self.ls_focus_adjust.update_and_validate(
-                self.ls_focus_adjust.value.get() + ls_focus_adjust_step),
+            text="%0.3f"%ls_focus_adjust_step,
+            command=lambda: self.ls_focus_adjust_v.update_and_validate(
+                self.ls_focus_adjust_v.value.get() + ls_focus_adjust_step),
             width=button_width,
             height=button_height)
         button_ls_focus_adjust_positive.grid(
@@ -348,7 +348,7 @@ class GuiMicroscope:
         ls_angular_dither_min = 0
         ls_angular_dither_max = 1
         ls_angular_dither_some = 0.5
-        self.ls_angular_dither = tkcw.CheckboxSliderSpinbox(
+        self.ls_angular_dither_v = tkcw.CheckboxSliderSpinbox(
             frame,
             label='angular dither (V)',
             checkbox_enabled=False,
@@ -364,15 +364,15 @@ class GuiMicroscope:
             width=5)
         def _update_dither():
             self.scope.apply_settings(
-                ls_angular_dither_v=self.ls_angular_dither.value.get())
+                ls_angular_dither_v=self.ls_angular_dither_v.value.get())
             if self.running_scout_mode.get():
                 self._snap_and_display()
             return None
-        self.ls_angular_dither.value.trace_add(
+        self.ls_angular_dither_v.value.trace_add(
             'write',
             lambda var, index, mode: _update_dither())
         ls_angular_dither_tip = Hovertip(
-            self.ls_angular_dither,
+            self.ls_angular_dither_v,
             "The 'angular_dither' setting adjusts how much the light-sheet\n" +
             "angle is dithered during an acquisition. This can help reduce\n" +
             "''streaking' artefacts from the sample absorbing and/or\n" +
@@ -383,7 +383,7 @@ class GuiMicroscope:
         button_ls_angular_dither_min = tk.Button(
             frame,
             text="none",
-            command=lambda: self.ls_angular_dither.update_and_validate(
+            command=lambda: self.ls_angular_dither_v.update_and_validate(
                 ls_angular_dither_min),
             width=button_width,
             height=button_height)
@@ -393,7 +393,7 @@ class GuiMicroscope:
         button_ls_angular_dither_some = tk.Button(
             frame,
             text="some",
-            command=lambda: self.ls_angular_dither.update_and_validate(
+            command=lambda: self.ls_angular_dither_v.update_and_validate(
                 ls_angular_dither_some),
             width=button_width,
             height=button_height)
@@ -403,7 +403,7 @@ class GuiMicroscope:
         button_ls_angular_dither_max = tk.Button(
             frame,
             text="max",
-            command=lambda: self.ls_angular_dither.update_and_validate(
+            command=lambda: self.ls_angular_dither_v.update_and_validate(
                 ls_angular_dither_max),
             width=button_width,
             height=button_height)
@@ -1210,7 +1210,7 @@ class GuiMicroscope:
         # projection angle slider:
         tilt_deg = int(round(np.rad2deg(ht_sols.tilt)))
         coverslip_deg, native_deg, traditional_deg = 0, 90 - tilt_deg, 90
-        self.projection_angle = tkcw.CheckboxSliderSpinbox(
+        self.projection_angle_deg = tkcw.CheckboxSliderSpinbox(
             frame,
             label='angle (deg)',
             checkbox_enabled=False,
@@ -1222,15 +1222,15 @@ class GuiMicroscope:
             width=5)
         def _update_projection_angle():
             self.scope.apply_settings(
-                projection_angle_deg=self.projection_angle.value.get())
+                projection_angle_deg=self.projection_angle_deg.value.get())
             if self.running_scout_mode.get():
                 self._snap_and_display()
             return None        
-        self.projection_angle.value.trace_add(
+        self.projection_angle_deg.value.trace_add(
             'write',
             lambda var, index, mode: _update_projection_angle())
         projection_angle_tip = Hovertip(
-            self.projection_angle,
+            self.projection_angle_deg,
             "The 'angle (deg)' setting adjusts the angle of the projection\n" +
             "of the 3D object when running the microscope in 'Projection\n" +
             "mode'.\n" +
@@ -1240,7 +1240,7 @@ class GuiMicroscope:
         button_coverslip = tk.Button(
             frame,
             text="coverslip",
-            command=lambda: self.projection_angle.update_and_validate(
+            command=lambda: self.projection_angle_deg.update_and_validate(
                 coverslip_deg),
             width=button_width,
             height=button_height)
@@ -1249,7 +1249,7 @@ class GuiMicroscope:
         button_native = tk.Button(
             frame,
             text="native",
-            command=lambda: self.projection_angle.update_and_validate(
+            command=lambda: self.projection_angle_deg.update_and_validate(
                 native_deg),
             width=button_width,
             height=button_height)
@@ -1258,7 +1258,7 @@ class GuiMicroscope:
         button_traditional = tk.Button(
             frame,
             text="traditional",
-            command=lambda: self.projection_angle.update_and_validate(
+            command=lambda: self.projection_angle_deg.update_and_validate(
                 traditional_deg),
             width=button_width,
             height=button_height)
@@ -2433,9 +2433,9 @@ class GuiMicroscope:
                 int(file_settings['volumes_per_buffer']))
             self.sample_ri.update_and_validate(
                 float(file_settings['sample_ri']))
-            self.ls_focus_adjust.update_and_validate(
-                1e3 * float(file_settings['ls_focus_adjust_v']))
-            self.ls_angular_dither.update_and_validate(
+            self.ls_focus_adjust_v.update_and_validate(
+                float(file_settings['ls_focus_adjust_v']))
+            self.ls_angular_dither_v.update_and_validate(
                 float(file_settings['ls_angular_dither_v']))
             return None
         load_from_file_button = tk.Button(
