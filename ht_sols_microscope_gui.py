@@ -242,13 +242,9 @@ class GuiMicroscope:
             "the part number to see the specification.")
         inner_frame = tk.LabelFrame(frame, text='fixed')
         inner_frame.grid(row=0, column=0, padx=10, pady=10)
-        dichroic_mirror_options = tuple(ht_sols.dichroic_mirror_options.keys())
-        dichroic_mirror = tk.StringVar()
-        dichroic_mirror.set(dichroic_mirror_options[0]) # set default
-        option_menu = tk.OptionMenu(
-            inner_frame,
-            dichroic_mirror,
-            *dichroic_mirror_options)
+        options = tuple(ht_sols.dichroic_mirror_options.keys())
+        dichroic_mirror = tk.StringVar(value=options[0]) # set default 
+        option_menu = tk.OptionMenu(inner_frame, dichroic_mirror, *options)
         option_menu.config(width=46, height=2) # match to TL and lasers
         option_menu.grid(row=0, column=0, padx=10, pady=10)
         return None
@@ -263,13 +259,9 @@ class GuiMicroscope:
             "Search the part numbers to see the specifications.")
         inner_frame = tk.LabelFrame(frame, text='choice')
         inner_frame.grid(row=0, column=0, padx=10, pady=10)
-        emission_filter_options = tuple(ht_sols.emission_filter_options.keys())
-        self.emission_filter = tk.StringVar()
-        self.emission_filter.set(emission_filter_options[6]) # set default
-        option_menu = tk.OptionMenu(
-            inner_frame,
-            self.emission_filter,
-            *emission_filter_options)
+        options = tuple(ht_sols.emission_filter_options.keys())
+        self.emission_filter = tk.StringVar(value=options[6]) # set default
+        option_menu = tk.OptionMenu(inner_frame, self.emission_filter, *options)
         option_menu.config(width=46, height=2) # match to TL and lasers
         option_menu.grid(row=0, column=0, padx=10, pady=10)
         self.emission_filter.trace_add(
