@@ -790,7 +790,7 @@ class GuiMicroscope:
         objective1_name_label = tk.Label(
             objective1_name_frame,
             textvariable=self.objective1_name,
-            bg='white',
+            bg='gainsboro',
             width=width)
         objective1_name_label.grid(padx=5, pady=5)
         objective1_name_label_tip = Hovertip(
@@ -807,7 +807,7 @@ class GuiMicroscope:
         self.autofocus_sample_flag_label = tk.Label(
             autofocus_sample_flag_frame,
             textvariable=self.autofocus_sample_flag_text,
-            bg='white',
+            bg='gainsboro',
             width=width)
         self.autofocus_sample_flag_label.grid(padx=5, pady=5)
         self.autofocus_sample_flag_label_tip = Hovertip(
@@ -821,7 +821,7 @@ class GuiMicroscope:
                 self.autofocus_sample_flag_label.config(bg='green')
             else:
                 self.autofocus_sample_flag_text.set('False')
-                self.autofocus_sample_flag_label.config(bg='white')
+                self.autofocus_sample_flag_label.config(bg='gainsboro')
             return None
         self.autofocus_sample_flag.trace_add(
             'write', _update_autofocus_sample_flag_text)
@@ -833,7 +833,7 @@ class GuiMicroscope:
         autofocus_offset_lens_position_label = tk.Label(
             autofocus_offset_lens_position_frame,
             textvariable=self.autofocus_offset_lens_position,
-            bg='white',
+            bg='gainsboro',
             width=width)
         autofocus_offset_lens_position_label.grid(padx=5, pady=5)
         autofocus_offset_lens_position_label_tip = Hovertip(
@@ -850,7 +850,7 @@ class GuiMicroscope:
         self.autofocus_focus_flag_label = tk.Label(
             autofocus_focus_flag_frame,
             textvariable=self.autofocus_focus_flag_text,
-            bg='white',
+            bg='gainsboro',
             width=width)
         self.autofocus_focus_flag_label.grid(padx=5, pady=5)
         self.autofocus_focus_flag_label_tip = Hovertip(
@@ -865,7 +865,7 @@ class GuiMicroscope:
                 self.autofocus_focus_flag_label.config(bg='green')
             else:
                 self.autofocus_focus_flag_text.set('False')
-                self.autofocus_focus_flag_label.config(bg='white')
+                self.autofocus_focus_flag_label.config(bg='gainsboro')
             return None
         self.autofocus_focus_flag.trace_add(
             'write', _update_autofocus_focus_flag_text)
@@ -1018,7 +1018,7 @@ class GuiMicroscope:
         Z_stage_position_mm_text_label = tk.Label(
             Z_stage_position_mm_text_frame,
             textvariable=self.Z_stage_position_mm_text,
-            bg='white',
+            bg='gainsboro',
             width=20)
         Z_stage_position_mm_text_label.grid(padx=5, pady=5)
         # equalize:
@@ -1093,7 +1093,7 @@ class GuiMicroscope:
         XY_stage_position_label = tk.Label(
             XY_stage_position_frame,
             textvariable=self.XY_stage_position_mm,
-            bg='white',
+            bg='gainsboro',
             width=20)
         XY_stage_position_label.grid(padx=5, pady=5)
         # last move label:
@@ -1103,7 +1103,7 @@ class GuiMicroscope:
         XY_stage_last_move_label = tk.Label(
             XY_stage_last_move_frame,
             textvariable=self.XY_stage_last_move,
-            bg='white',
+            bg='gainsboro',
             width=10)
         XY_stage_last_move_label.grid(padx=5, pady=5)        
         def _update_position(how):
@@ -1512,7 +1512,7 @@ class GuiMicroscope:
         grid_location_label = tk.Label(
             grid_location_frame,
             textvariable=self.grid_location,
-            bg='white',
+            bg='gainsboro',
             width=20)
         grid_location_label.grid(padx=5, pady=5)
         grid_location_label_tip = Hovertip(
@@ -2144,7 +2144,7 @@ class GuiMicroscope:
         volumes_per_s_label = tk.Label(
             volumes_per_s_frame,
             textvariable=self.volumes_per_s_text,
-            bg='white',
+            bg='gainsboro',
             width=width)
         volumes_per_s_label.grid(padx=5, pady=5)
         volumes_per_s_label_tip = Hovertip(
@@ -2161,7 +2161,7 @@ class GuiMicroscope:
             memory_pct = 100 * data_memory_gb / max_memory_gb
             text = '%0.3f (%0.2f%%)'%(data_memory_gb, memory_pct)
             self.data_memory_text.set(text)
-            self.data_memory_text_label.config(bg='white')
+            self.data_memory_text_label.config(bg='gainsboro')
             if self.data_buffer_exceeded.get():
                 self.data_memory_text_label.config(bg='red')
             return None
@@ -2175,7 +2175,7 @@ class GuiMicroscope:
         self.data_memory_text_label = tk.Label(
             data_memory_text_frame,
             textvariable=self.data_memory_text,
-            bg='white',
+            bg='gainsboro',
             width=width)
         self.data_memory_text_label.grid(padx=5, pady=5)
         self.data_memory_text_label_tip = Hovertip(
@@ -2191,7 +2191,7 @@ class GuiMicroscope:
             memory_pct = 100 * preview_memory_gb / max_memory_gb
             text = '%0.3f (%0.2f%%)'%(preview_memory_gb, memory_pct)
             self.preview_memory_text.set(text)
-            self.preview_memory_text_label.config(bg='white')
+            self.preview_memory_text_label.config(bg='gainsboro')
             if self.preview_buffer_exceeded.get():
                 self.preview_memory_text_label.config(bg='red')
             return None
@@ -2205,7 +2205,7 @@ class GuiMicroscope:
         self.preview_memory_text_label = tk.Label(
             preview_memory_text_frame,
             textvariable=self.preview_memory_text,
-            bg='white',
+            bg='gainsboro',
             width=width)
         self.preview_memory_text_label.grid(padx=5, pady=5)
         self.preview_memory_text_label_tip = Hovertip(
@@ -2221,7 +2221,7 @@ class GuiMicroscope:
             memory_pct = 100 * total_memory_gb / max_memory_gb
             text = '%0.3f (%0.2f%%)'%(total_memory_gb, memory_pct)
             self.total_memory_text.set(text)
-            self.total_memory_text_label.config(bg='white')
+            self.total_memory_text_label.config(bg='gainsboro')
             if self.total_bytes_exceeded.get():
                 self.total_memory_text_label.config(bg='red')
             return None
@@ -2235,7 +2235,7 @@ class GuiMicroscope:
         self.total_memory_text_label = tk.Label(
             total_memory_text_frame,
             textvariable=self.total_memory_text,
-            bg='white',
+            bg='gainsboro',
             width=width)
         self.total_memory_text_label.grid(padx=5, pady=5)
         self.total_memory_text_label_tip = Hovertip(
@@ -2263,7 +2263,7 @@ class GuiMicroscope:
         self.total_storage_text_label = tk.Label(
             total_storage_text_frame,
             textvariable=self.total_storage_text,
-            bg='white',
+            bg='gainsboro',
             width=width)
         self.total_storage_text_label.grid(padx=5, pady=5)
         self.total_storage_text_label_tip = Hovertip(
@@ -2298,7 +2298,7 @@ class GuiMicroscope:
         self.min_time_text_label = tk.Label(
             min_time_text_frame,
             textvariable=self.min_time_text,
-            bg='white',
+            bg='gainsboro',
             width=width)
         self.min_time_text_label.grid(padx=5, pady=5)
         self.min_time_text_label_tip = Hovertip(
@@ -2441,7 +2441,7 @@ class GuiMicroscope:
         total_positions_label = tk.Label(
             total_positions_frame,
             textvariable=self.total_positions,
-            bg='white',
+            bg='gainsboro',
             width=width)
         total_positions_label.grid(padx=5, pady=5)
         total_positions_tip = Hovertip(
@@ -2517,7 +2517,7 @@ class GuiMicroscope:
         current_position_label = tk.Label(
             current_position_frame,
             textvariable=self.current_position,
-            bg='white',
+            bg='gainsboro',
             width=width)
         current_position_label.grid(padx=5, pady=5)
         current_position_tip = Hovertip(
