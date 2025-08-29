@@ -599,16 +599,16 @@ class GuiMicroscope:
         slider_length = 365 # match to camera
         button_width, button_height = 10, 1
         # ri slider:
-        sample_ri_min, sample_ri_max, sample_ri_center = 1.33, 1.51, 1.38
+        ri_min, ri_max, ri_mid = 1.33, 1.51, 1.38
         self.sample_ri = tkcw.CheckboxSliderSpinbox(
             frame,
             label='~refractive index',
             checkbox_enabled=False,
             slider_length=slider_length,
             tickinterval=6,
-            min_value=sample_ri_min,
-            max_value=sample_ri_max,
-            default_value=sample_ri_min,
+            min_value=ri_min,
+            max_value=ri_max,
+            default_value=ri_min,
             increment=0.01,
             integers_only=False,            
             row=0,
@@ -630,32 +630,26 @@ class GuiMicroscope:
         button_sample_ri_min = tk.Button(
             frame,
             text="watery",
-            command=lambda: self.sample_ri.update_and_validate(
-                sample_ri_min),
+            command=lambda: self.sample_ri.update_and_validate(ri_min),
             width=button_width,
             height=button_height)
-        button_sample_ri_min.grid(
-            row=1, column=0, padx=10, pady=10, sticky='w')
-        # ri center button:
-        button_sample_ri_center = tk.Button(
+        button_sample_ri_min.grid(row=1, column=0, padx=10, pady=10, sticky='w')
+        # ri mid button:
+        button_sample_ri_mid = tk.Button(
             frame,
             text="live bio?",
-            command=lambda: self.sample_ri.update_and_validate(
-                sample_ri_center),
+            command=lambda: self.sample_ri.update_and_validate(ri_mid),
             width=button_width,
             height=button_height)
-        button_sample_ri_center.grid(
-            row=1, column=0, padx=5, pady=5)
+        button_sample_ri_mid.grid(row=1, column=0, padx=5, pady=5)
         # ri max button:
         button_sample_ri_max = tk.Button(
             frame,
             text="oily",
-            command=lambda: self.sample_ri.update_and_validate(
-                sample_ri_max),
+            command=lambda: self.sample_ri.update_and_validate(ri_max),
             width=button_width,
             height=button_height)
-        button_sample_ri_max.grid(
-            row=1, column=0, padx=10, pady=10, sticky='e')
+        button_sample_ri_max.grid(row=1, column=0, padx=10, pady=10, sticky='e')
         return None
 
     def init_focus_piezo(self):
@@ -669,8 +663,8 @@ class GuiMicroscope:
             "adjusting the focus of the primary objective over a short\n" +
             "range.")
         min_um, max_um = 0, 800
+        mid_um = int(round((max_um - min_um) / 2))
         small_move_um, large_move_um = 1, 5
-        center_um = int(round((max_um - min_um) / 2))
         # slider:
         self.focus_piezo_z_um = tkcw.CheckboxSliderSpinbox(
             self.focus_piezo_frame,
@@ -698,7 +692,7 @@ class GuiMicroscope:
             # check which direction:
             if how == 'large_up':     z_um -= large_move_um
             if how == 'small_up':     z_um -= small_move_um
-            if how == 'center':       z_um  = center_um
+            if how == 'middle':       z_um  = mid_um
             if how == 'small_down':   z_um += small_move_um
             if how == 'large_down':   z_um += large_move_um
             # update:
@@ -721,14 +715,14 @@ class GuiMicroscope:
             width=button_width,
             height=button_height)
         button_small_move_up.grid(row=1, column=1, sticky='s')
-        # center button:
-        button_center_move = tk.Button(
+        # middle button:
+        button_middle_move = tk.Button(
             self.focus_piezo_frame,
-            text="center",
-            command=lambda d='center': _update_position(d),
+            text="middle",
+            command=lambda d='middle': _update_position(d),
             width=button_width,
             height=button_height)
-        button_center_move.grid(row=2, column=1, padx=5, pady=5)
+        button_middle_move.grid(row=2, column=1, padx=5, pady=5)
         # small down button:
         button_small_move_down = tk.Button(
             self.focus_piezo_frame,
