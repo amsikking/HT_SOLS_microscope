@@ -26,8 +26,7 @@ class GuiMicroscope:
         font.nametofont("TkFixedFont").configure(size=size)
         font.nametofont("TkTextFont").configure(size=size)
         # load hardware GUI's:
-        self.init_transmitted_light()
-        self.init_laser_box()
+        self.init_light_sources()
         self.init_dichroic_mirror()
         self.init_filter_wheel()
         self.init_lightsheet()
@@ -127,7 +126,29 @@ class GuiMicroscope:
         # start event loop:
         self.root.mainloop() # blocks here until 'X'
 
-    def init_transmitted_light(self):
+    def init_light_sources(self):
+        def _update_channels(*args): # *args from trace not used
+            channels_per_slice, power_per_channel = [], []
+            if self.power_tl.checkbox_value.get():
+                channels_per_slice.append('LED')
+                power_per_channel.append(self.power_tl.value.get())
+            if self.power_405.checkbox_value.get():
+                channels_per_slice.append('405')
+                power_per_channel.append(self.power_405.value.get())
+            if self.power_488.checkbox_value.get():
+                channels_per_slice.append('488')
+                power_per_channel.append(self.power_488.value.get())
+            if self.power_561.checkbox_value.get():
+                channels_per_slice.append('561')
+                power_per_channel.append(self.power_561.value.get())
+            if self.power_640.checkbox_value.get():
+                channels_per_slice.append('640')
+                power_per_channel.append(self.power_640.value.get())
+            if len(channels_per_slice) > 0: # at least 1 channel selected
+                self.scope.apply_settings(channels_per_slice=channels_per_slice,
+                                          power_per_channel=power_per_channel)
+            return None
+        # transmitted light:
         frame = tk.LabelFrame(self.root, text='TRANSMITTED LIGHT', bd=6)
         frame.grid(row=1, column=0, padx=5, pady=5, sticky='n')
         frame_tip = Hovertip(
@@ -142,13 +163,9 @@ class GuiMicroscope:
             slider_length=200,
             default_value=50,
             width=5)
-        self.power_tl.checkbox_value.trace_add(
-            'write', self._apply_channel_settings)        
-        self.power_tl.value.trace_add(
-            'write', self._apply_channel_settings)
-        return None
-
-    def init_laser_box(self):
+        self.power_tl.checkbox_value.trace_add('write', _update_channels)        
+        self.power_tl.value.trace_add('write', _update_channels)
+        # lasers:
         frame = tk.LabelFrame(self.root, text='LASER BOX', bd=6)
         frame.grid(row=2, column=0, rowspan=4, padx=5, pady=5, sticky='n')
         frame_tip = Hovertip(
@@ -164,10 +181,8 @@ class GuiMicroscope:
             slider_length=200,
             default_value=50,
             width=5)
-        self.power_405.checkbox_value.trace_add(
-            'write', self._apply_channel_settings)        
-        self.power_405.value.trace_add(
-            'write', self._apply_channel_settings)
+        self.power_405.checkbox_value.trace_add('write', _update_channels)        
+        self.power_405.value.trace_add('write', _update_channels)
         # 488:
         self.power_488 = tkcw.CheckboxSliderSpinbox(
             frame,
@@ -177,10 +192,8 @@ class GuiMicroscope:
             default_value=50,
             row=1,
             width=5)
-        self.power_488.checkbox_value.trace_add(
-            'write', self._apply_channel_settings)        
-        self.power_488.value.trace_add(
-            'write', self._apply_channel_settings)
+        self.power_488.checkbox_value.trace_add('write', _update_channels)        
+        self.power_488.value.trace_add('write', _update_channels)
         # 561:
         self.power_561 = tkcw.CheckboxSliderSpinbox(
             frame,
@@ -190,10 +203,8 @@ class GuiMicroscope:
             default_value=50,
             row=2,
             width=5)
-        self.power_561.checkbox_value.trace_add(
-            'write', self._apply_channel_settings)        
-        self.power_561.value.trace_add(
-            'write', self._apply_channel_settings)
+        self.power_561.checkbox_value.trace_add('write', _update_channels)        
+        self.power_561.value.trace_add('write', _update_channels)
         # 640:
         self.power_640 = tkcw.CheckboxSliderSpinbox(
             frame,
@@ -203,33 +214,8 @@ class GuiMicroscope:
             default_value=50,
             row=3,
             width=5)
-        self.power_640.checkbox_value.trace_add(
-            'write', self._apply_channel_settings)        
-        self.power_640.value.trace_add(
-            'write', self._apply_channel_settings)
-        return None
-
-    def _apply_channel_settings(self, var, index, mode):
-        # var, index, mode are passed from .trace_add but not used
-        channels_per_slice, power_per_channel = [], []
-        if self.power_tl.checkbox_value.get():
-            channels_per_slice.append('LED')
-            power_per_channel.append(self.power_tl.value.get())
-        if self.power_405.checkbox_value.get():
-            channels_per_slice.append('405')
-            power_per_channel.append(self.power_405.value.get())
-        if self.power_488.checkbox_value.get():
-            channels_per_slice.append('488')
-            power_per_channel.append(self.power_488.value.get())
-        if self.power_561.checkbox_value.get():
-            channels_per_slice.append('561')
-            power_per_channel.append(self.power_561.value.get())
-        if self.power_640.checkbox_value.get():
-            channels_per_slice.append('640')
-            power_per_channel.append(self.power_640.value.get())
-        if len(channels_per_slice) > 0: # at least 1 channel selected
-            self.scope.apply_settings(channels_per_slice=channels_per_slice,
-                                      power_per_channel=power_per_channel)
+        self.power_640.checkbox_value.trace_add('write', _update_channels)        
+        self.power_640.value.trace_add('write', _update_channels)
         return None
 
     def init_dichroic_mirror(self):
