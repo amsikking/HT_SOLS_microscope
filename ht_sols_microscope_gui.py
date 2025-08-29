@@ -589,8 +589,8 @@ class GuiMicroscope:
     def _snap_and_display(self):
         if self.volumes_per_buffer.value.get() != 1:
             self.volumes_per_buffer.update_and_validate(1)
-        self.last_acquire_task.get_result() # don't accumulate
-        self.last_acquire_task = self.scope.acquire()
+        if not self.last_acquire_task.is_alive():
+            self.last_acquire_task = self.scope.acquire()
         return None
 
     def init_sample_ri(self):
@@ -818,8 +818,7 @@ class GuiMicroscope:
                 _get_position()
             self.Z_stage_position_mm_text.set('%0.3f'%Z_mm)
             if self.Z_Stage_moving.get():
-                if not self.last_acquire_task.is_alive():
-                    self._snap_and_display()
+                self._snap_and_display()
             if run_update_position.get():
                 self.root.after(int(1e3/15), _run_update_position) # 15fps
             return None
@@ -2582,8 +2581,7 @@ class GuiMicroscope:
                 self._set_running_mode('None')
             def _run_live_mode():
                 if self.running_live_mode.get():
-                    if not self.last_acquire_task.is_alive():
-                        self._snap_and_display()
+                    self._snap_and_display()
                     self.root.after(int(1e3/30), _run_live_mode) # 30 fps
                 return None
             _run_live_mode()
