@@ -92,7 +92,7 @@ class GuiMicroscope:
                     self.scope.preview_buffer_exceeded)
                 self.total_bytes.set(self.scope.total_bytes)
                 self.total_bytes_exceeded.set(self.scope.total_bytes_exceeded)
-                # calculate voltages:
+                # check time:
                 self.buffer_time_s.set(self.scope.buffer_time_s)
                 self.volumes_per_s.set(self.scope.volumes_per_s)
                 # check autofocus and joystick:
@@ -1039,8 +1039,8 @@ class GuiMicroscope:
             "determines how much the move buttons will move as a % of the\n" +
             "current field of view (FOV).")
         # position:
-        self.XY_stage_position_mm = tk.StringVar(value='None')
-        self.XY_stage_position_mm.trace_add(
+        self.XY_stage_position_mm_text = tk.StringVar(value='None')
+        self.XY_stage_position_mm_text.trace_add(
             'write',
             lambda var, index, mode: self.scope.apply_settings(
                 XY_stage_position_mm=(self.X_stage_position_mm,
@@ -1051,7 +1051,7 @@ class GuiMicroscope:
         XY_stage_position_frame.grid(row=1, column=1, padx=10, pady=5)        
         XY_stage_position_label = tk.Label(
             XY_stage_position_frame,
-            textvariable=self.XY_stage_position_mm,
+            textvariable=self.XY_stage_position_mm_text,
             bg='gainsboro',
             width=20)
         XY_stage_position_label.grid(padx=5, pady=5)
@@ -1135,7 +1135,7 @@ class GuiMicroscope:
     def _update_XY_stage_position(self, XY_stage_position_mm):
         self.X_stage_position_mm = XY_stage_position_mm[0]
         self.Y_stage_position_mm = XY_stage_position_mm[1]
-        self.XY_stage_position_mm.set(
+        self.XY_stage_position_mm_text.set(
             'X = %0.3f, Y = %0.3f'%tuple(XY_stage_position_mm))
         return None
 
