@@ -613,14 +613,12 @@ class GuiMicroscope:
             integers_only=False,            
             row=0,
             width=5)
-        def _update_sample_ri():
+        def _update_sample_ri(*args): # *args from trace not used 
             self.scope.apply_settings(sample_ri=self.sample_ri.value.get())
             if self.running_scout_mode.get():
                 self._snap_and_display()
-            return None        
-        self.sample_ri.value.trace_add(
-            'write',
-            lambda var, index, mode: _update_sample_ri())
+            return None
+        self.sample_ri.value.trace_add('write', _update_sample_ri)
         sample_ri_tip = Hovertip(
             self.sample_ri,
             "The '~refractive index' setting adjusts the zoom lens in the\n" +
@@ -686,16 +684,14 @@ class GuiMicroscope:
             max_value=max_um,
             rowspan=5,
             width=5)
-        def _move():
+        def _move(*args): # *args from trace not used 
             self.scope.apply_settings(
-                focus_piezo_z_um=(self.focus_piezo_z_um.value.get(),
-                                  'absolute'))
+                focus_piezo_z_um=(
+                    self.focus_piezo_z_um.value.get(), 'absolute'))
             if self.running_scout_mode.get():
                 self._snap_and_display()
             return None
-        self.focus_piezo_z_um.value.trace_add(
-            'write',
-            lambda var, index, mode: _move())
+        self.focus_piezo_z_um.value.trace_add( 'write', _move)
         def _update_position(how):
             # check current position:
             z_um = self.focus_piezo_z_um.value.get()
@@ -922,7 +918,7 @@ class GuiMicroscope:
             "Shows the status of the 'Sample flag' from the hardware\n" +
             "autofocus.\n" +
             "NOTE: the 'Sample flag' must be 'True' to lock the autofocus.")
-        def _update_autofocus_sample_flag_text(*args):
+        def _update_sample_flag_text(*args): # *args from trace not used
             if self.autofocus_sample_flag.get():
                 self.autofocus_sample_flag_text.set('True')
                 self.autofocus_sample_flag_label.config(bg='green')
@@ -930,8 +926,7 @@ class GuiMicroscope:
                 self.autofocus_sample_flag_text.set('False')
                 self.autofocus_sample_flag_label.config(bg='gainsboro')
             return None
-        self.autofocus_sample_flag.trace_add(
-            'write', _update_autofocus_sample_flag_text)
+        self.autofocus_sample_flag.trace_add('write', _update_sample_flag_text)
         # offset lens:
         self.autofocus_offset_lens_position = tk.StringVar(value='None')
         autofocus_offset_lens_position_frame = tk.LabelFrame(
@@ -966,7 +961,7 @@ class GuiMicroscope:
             "autofocus.\n" +
             "NOTE: the 'focus flag' should be 'True' if the autofocus is\n" +
             "locked.")
-        def _update_autofocus_focus_flag_text(*args):
+        def _update_focus_flag_text(*args): # *args from trace not used
             if self.autofocus_focus_flag.get():
                 self.autofocus_focus_flag_text.set('True')
                 self.autofocus_focus_flag_label.config(bg='green')
@@ -974,8 +969,7 @@ class GuiMicroscope:
                 self.autofocus_focus_flag_text.set('False')
                 self.autofocus_focus_flag_label.config(bg='gainsboro')
             return None
-        self.autofocus_focus_flag.trace_add(
-            'write', _update_autofocus_focus_flag_text)
+        self.autofocus_focus_flag.trace_add('write', _update_focus_flag_text)
         # autofocus button:
         def _autofocus():
             if self.autofocus_enabled.get():
@@ -1192,15 +1186,13 @@ class GuiMicroscope:
             max_value=traditional_deg,
             default_value=traditional_deg,
             width=5)
-        def _update_projection_angle():
+        def _update_angle(*args): # *args from trace not used
             self.scope.apply_settings(
                 projection_angle_deg=self.projection_angle_deg.value.get())
             if self.running_scout_mode.get():
                 self._snap_and_display()
-            return None        
-        self.projection_angle_deg.value.trace_add(
-            'write',
-            lambda var, index, mode: _update_projection_angle())
+            return None
+        self.projection_angle_deg.value.trace_add('write', _update_angle)
         projection_angle_tip = Hovertip(
             self.projection_angle_deg,
             "The 'angle (deg)' setting adjusts the angle of the projection\n" +
@@ -1651,7 +1643,7 @@ class GuiMicroscope:
             "operation (i.e. this operation 'homes' the grid). To change\n" +
             "the grid origin simply update with this button")
         # current location:
-        def _update_grid_location(*args):
+        def _update_grid_location(*args): # *args from trace not used
             r, c, p_mm = self.grid_list[self.grid_index.get()]
             name = '%s%i'%(chr(ord('@') + r + 1), c + 1)
             self.grid_location.set(name)
@@ -2161,7 +2153,7 @@ class GuiMicroscope:
         frame.grid(row=7, column=4, rowspan=3, padx=5, pady=5, sticky='n')
         width = 24
         # volumes per second:
-        def _update_volumes_per_s_text(*args):
+        def _update_volumes_per_s_text(*args): # *args from trace not used
             self.volumes_per_s_text.set('%0.3f'%self.volumes_per_s.get())
             return None        
         self.volumes_per_s = tk.DoubleVar()
@@ -2183,7 +2175,7 @@ class GuiMicroscope:
             "during the analogue out 'play') and does reflect any delays\n" +
             "or latency between acquisitions.")
         # data memory:
-        def _update_data_memory_text(*args):
+        def _update_data_memory_text(*args): # *args from trace not used
             data_memory_gb = 1e-9 * self.data_bytes.get()
             max_memory_gb = 1e-9 * self.max_bytes_per_buffer
             memory_pct = 100 * data_memory_gb / max_memory_gb
@@ -2213,7 +2205,7 @@ class GuiMicroscope:
             "NOTE: this can be useful for montoring resources and \n" +
             "avoiding memory limits.")
         # preview memory:
-        def _update_preview_memory_text(*args):
+        def _update_preview_memory_text(*args): # *args from trace not used
             preview_memory_gb = 1e-9 * self.preview_bytes.get()
             max_memory_gb = 1e-9 * self.max_bytes_per_buffer
             memory_pct = 100 * preview_memory_gb / max_memory_gb
@@ -2243,7 +2235,7 @@ class GuiMicroscope:
             "NOTE: this can be useful for montoring resources and \n" +
             "avoiding memory limits.")
         # total memory:
-        def _update_total_memory_text(*args):
+        def _update_total_memory_text(*args): # *args from trace not used
             total_memory_gb = 1e-9 * self.total_bytes.get()
             max_memory_gb = 1e-9 * self.max_allocated_bytes
             memory_pct = 100 * total_memory_gb / max_memory_gb
@@ -2273,7 +2265,7 @@ class GuiMicroscope:
             "NOTE: this can be useful for montoring resources and \n" +
             "avoiding memory limits.")
         # total storage:
-        def _update_total_storage_text(*args):
+        def _update_total_storage_text(*args): # *args from trace not used
             positions = 1
             if self.loop_over_position_list.get():
                 positions = max(len(self.XY_stage_position_list), 1)
@@ -2302,7 +2294,7 @@ class GuiMicroscope:
             "NOTE: this can be useful for montoring resources and \n" +
             "avoiding storage limits.")
         # min time:
-        def _update_min_time_text(*args):
+        def _update_min_time_text(*args): # *args from trace not used
             positions = 1
             if self.loop_over_position_list.get():
                 positions = max(len(self.XY_stage_position_list), 1)
