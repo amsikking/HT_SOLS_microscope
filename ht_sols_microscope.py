@@ -158,7 +158,7 @@ class Microscope:
     def _init_lasers(self):
         if self.verbose: print("\n%s: opening lasers..."%self.name)
         self.lasers = coherent_OBIS_LSLX_laser_box.Controller(
-            which_port='COM3', control_mode='analog', verbose=False)
+            which_port='COM16', control_mode='analog', verbose=False)
         for laser in self.lasers.lasers:
             self.lasers.set_enable('ON', laser)
         if self.verbose: print("\n%s: -> lasers open."%self.name)
@@ -247,8 +247,8 @@ class Microscope:
         self.names_to_voltage_channels = {
             '405_TTL'           : 0,
             '405_power'         : 1,
-            '445_TTL'           : 2,
-            '445_power'         : 3,
+##            '445_TTL'           : 2,
+##            '445_power'         : 3,
             '488_TTL'           : 4,
             '488_power'         : 5,
             '561_TTL'           : 6,
@@ -362,7 +362,7 @@ class Microscope:
                     if channel in ('405_on_during_rolling',): light_on_px = 0
                     if channel != 'LED': # i.e. laser channels
                         v[light_on_px:period_px - jitter_px,
-                          n2c[channel + '_TTL']] = 3
+                          n2c[channel + '_TTL']] = 10 # /4 = 2.5V buffer output 
                     v[light_on_px:period_px - jitter_px,
                       n2c[channel + '_power']] = 4.5 * power / 100
                     # light sheet focus adjust:
