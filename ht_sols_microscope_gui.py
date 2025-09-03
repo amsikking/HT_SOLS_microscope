@@ -2813,6 +2813,7 @@ class GuiMicroscope:
             self.cancel_running_mode_button.config(text=('Cancel: ' + mode))
             # display cancel popup and grab set:
             self.cancel_running_mode_popup.deiconify()
+            self.cancel_running_mode_popup.update()
             self.cancel_running_mode_popup.grab_set()
         if mode == 'None':
             # turn everything off:
