@@ -257,6 +257,16 @@ class GuiMicroscope:
                 emission_filter=self.emission_filter.get()))
         return None
 
+    def _snap_and_display(self):
+        if not self.last_acquire_task.is_alive():
+            volumes_per_buffer = self.volumes_per_buffer.value.get()
+            if volumes_per_buffer > 1: # update to 1 for 'snap'
+                self.volumes_per_buffer.update_and_validate(1)
+            self.last_acquire_task = self.scope.acquire()
+            if volumes_per_buffer > 1: # restore value for user
+                self.volumes_per_buffer.update_and_validate(volumes_per_buffer)
+        return None
+
     def init_lightsheet(self):
         frame = tk.LabelFrame(self.root, text='LIGHT-SHEET', bd=6)
         frame.grid(row=9, column=0, padx=5, pady=5, sticky='n')
@@ -585,13 +595,6 @@ class GuiMicroscope:
             height=button_height)
         button_voxel_aspect_ratio_max.grid(
             row=3, column=0, padx=10, pady=10, sticky='e')
-        return None
-
-    def _snap_and_display(self):
-        if self.volumes_per_buffer.value.get() != 1:
-            self.volumes_per_buffer.update_and_validate(1)
-        if not self.last_acquire_task.is_alive():
-            self.last_acquire_task = self.scope.acquire()
         return None
 
     def init_sample_ri(self):
@@ -2558,10 +2561,14 @@ class GuiMicroscope:
             "the amount memory/data needed. For more understanding see:\n" +
             "https://doi.org/10.1038/s41592-021-01175-7.")
         # snap volume:
+        def _snap_volume():
+            self.running_live_mode.set(False) # live mode default off
+            self._snap_and_display()
+            return None
         snap_volume_button = tk.Button(
             frame,
             text="Snap volume",
-            command=self._snap_and_display,
+            command=_snap_volume,
             font=('Segoe UI', '10', 'bold'),
             width=button_width + bold_width_adjust,
             height=button_height)
