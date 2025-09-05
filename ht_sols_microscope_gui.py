@@ -1749,10 +1749,9 @@ class GuiMicroscope:
             "of tiles set by the 'TILE NAVIGATOR'.")
         # start grid preview:
         def _start_grid_preview():
-            print('\nGrid preview -> started')
-            self._set_running_mode('grid_preview')
-            if self.volumes_per_buffer.value.get() != 1:
-                self.volumes_per_buffer.update_and_validate(1)
+            self.running_live_mode.set(False) # live mode default off
+            self._grab_focus_and_offer_cancel(
+                'grid preview', self.running_grid_preview)
             if not self.tile_the_grid.get():
                 folder_name = self._get_folder_name() + '_grid'
                 self.grid_preview_list = self.grid_list
@@ -1774,6 +1773,8 @@ class GuiMicroscope:
                                 (gr, gc, tr, tc, p_mm))
             self.current_grid_preview = 0
             def _run_grid_preview():
+                if not self.running_grid_preview.get(): # check for cancel
+                    return None
                 # get co-ords/name and update location:
                 if not self.tile_the_grid.get():
                     gr, gc, p_mm = self.grid_preview_list[
@@ -1849,14 +1850,12 @@ class GuiMicroscope:
                 # display:
                 self.scope.display.show_grid_preview(self.grid_preview)
                 # check before re-run:
-                if (self.running_grid_preview.get() and
-                    self.current_grid_preview < len(
-                        self.grid_preview_list) - 1):
+                if self.current_grid_preview < len(self.grid_preview_list) - 1:
                     self.current_grid_preview += 1
                     self.root.after(int(1e3/30), _run_grid_preview) # 30fps
                 else:
-                    self._set_running_mode('None')
-                    print('Grid preview -> finished\n')
+                    self._release_focus_and_finish(
+                        'grid preview', self.running_grid_preview)
                 return None
             _run_grid_preview()
             return None
