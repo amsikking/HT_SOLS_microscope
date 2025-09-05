@@ -45,6 +45,7 @@ class GuiMicroscope:
         self.init_settings_output() # shows output from settings
         self.init_settings()        # collects settings from GUI
         self.init_acquire()         # microscope methods
+        self.init_cancel_process()  # a way to cancel longer processes
         self.init_running_mode()    # toggles between different modes
         # optionally initialize microscope:
         if init_microscope:
@@ -1271,10 +1272,9 @@ class GuiMicroscope:
             "data) and populate the 'POSITION LIST'.\n")
         # start tile preview:
         def _start_tile_preview():
-            print('\nTile preview -> started')
-            self._set_running_mode('tile_preview')
-            if self.volumes_per_buffer.value.get() != 1:
-                self.volumes_per_buffer.update_and_validate(1)
+            self.running_live_mode.set(False) # live mode default off
+            self._grab_focus_and_offer_cancel(
+                'tile preview', self.running_tile_preview)
             folder_name = self._get_folder_name() + '_tile'
             # calculate move size:
             X_move_mm = 1e-3 * self.width_px.value.get() * self.sample_px_um
@@ -1288,6 +1288,8 @@ class GuiMicroscope:
                     self.tile_list.append((r, c, p_mm))
             self.current_tile = 0
             def _run_tile_preview():
+                if not self.running_tile_preview.get(): # check for cancel
+                    return None
                 # update position:
                 r, c, p_mm = self.tile_list[self.current_tile]
                 self._update_XY_stage_position(p_mm)
@@ -1333,14 +1335,13 @@ class GuiMicroscope:
                                   c * shape[2]:(c + 1) * shape[2]] = tile
                 # display:
                 self.scope.display.show_tile_preview(self.tile_preview)
-                if (self.running_tile_preview.get() and
-                    self.current_tile < len(self.tile_list) - 1): 
+                if self.current_tile < len(self.tile_list) - 1:
                     self.current_tile += 1
                     self.root.after(int(1e3/30), _run_tile_preview) # 30fps
                 else:
-                    self._set_running_mode('None')
+                    self._release_focus_and_finish(
+                        'tile preview', self.running_tile_preview)
                     self.move_to_tile_button.config(state='normal')
-                    print('Tile preview -> finished\n')
                 return None
             _run_tile_preview()
             return None
@@ -2762,6 +2763,49 @@ class GuiMicroscope:
             "- multiple iterations of the above (set 'Acquire number' > 1).\n" +
             "- a time delay between successive iterations of the above \n" +
             "(set 'Inter-acquire delay (s)' > the time per iteration)")
+        return None 
+
+    def init_cancel_process(self):
+        self.cancel_popup = tk.Toplevel()
+        self.cancel_popup.title('Cancel current process')
+        x, y = self.root.winfo_x(), self.root.winfo_y() # center popup
+        self.cancel_popup.geometry("+%d+%d" % (x + 1200, y + 600))
+        cancel_popup_tip = Hovertip(
+            self.cancel_popup,
+            "Cancel the current process.\n" +
+            "NOTE: this is not immediate since some processes must finish\n" +
+            "once launched.")
+        self.cancel_button = tk.Button(
+            self.cancel_popup,
+            text=('Cancel'),
+            font=('Segoe UI', '10', 'bold'),
+            bg='red',
+            width=25,
+            height=2)
+        self.cancel_button.grid(padx=10, pady=10)
+        self.cancel_popup.withdraw()
+        return None
+
+    def _grab_focus_and_offer_cancel(self, name, variable):
+        def _cancel():
+            print('\n*** Canceled *** -> %s\n'%name)
+            self._release_focus_and_finish(name, variable, canceled=True)
+            return None
+        print('\nStarted -> %s'%name)
+        self.cancel_button.config(command=_cancel)
+        # display cancel popup and grab set:
+        self.cancel_popup.deiconify()
+        self.cancel_popup.update()
+        self.cancel_popup.grab_set()
+        return None
+
+    def _release_focus_and_finish(self, name, variable, canceled=False):
+        variable.set(False)
+        if not canceled:
+            print('Finished -> %s\n'%name)
+        # hide cancel popup and release set:
+        self.cancel_popup.withdraw()
+        self.cancel_popup.grab_release()
         return None
 
     def init_running_mode(self):
