@@ -2580,24 +2580,17 @@ class GuiMicroscope:
             "the display.\n" +
             "NOTE: this does not save any data or position information.")
         # live mode:
-        def _live_mode():
+        def _run_live_mode():
             if self.running_live_mode.get():
-                self._set_running_mode('live_mode')
-            else:
-                self._set_running_mode('None')
-            def _run_live_mode():
-                if self.running_live_mode.get():
-                    self._snap_and_display()
-                    self.root.after(int(1e3/30), _run_live_mode) # 30 fps
-                return None
-            _run_live_mode()
+                self._snap_and_display()
+                self.root.after(int(1e3/30), _run_live_mode) # 30 fps
             return None
         self.running_live_mode = tk.BooleanVar()
         live_mode_button = tk.Checkbutton(
             frame,
             text='Live mode (On/Off)',
             variable=self.running_live_mode,
-            command=_live_mode,
+            command=_run_live_mode,
             indicatoron=0,
             font=('Segoe UI', '10', 'italic'),
             width=button_width,
