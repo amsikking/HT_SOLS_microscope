@@ -2534,7 +2534,6 @@ class GuiMicroscope:
         frame = tk.LabelFrame(
             self.root, text='ACQUIRE', font=('Segoe UI', '10', 'bold'), bd=6)
         frame.grid(row=7, column=6, rowspan=3, padx=5, pady=5, sticky='n')
-        frame.bind('<Enter>', lambda event: frame.focus_set()) # force update
         button_width, button_height = 25, 2
         bold_width_adjust = -3
         spinbox_width = 20
@@ -2671,8 +2670,8 @@ class GuiMicroscope:
             "cannot be recovered.\n")
         # run acquire:
         def _acquire():
-            print('\nAcquire -> started')
-            self._set_running_mode('acquire')
+            self.running_live_mode.set(False) # live mode default off
+            self._grab_focus_and_offer_cancel('acquire', self.running_acquire)
             self.folder_name = self._get_folder_name() + '_acquire'
             self.delay_saved = False
             self.acquire_count = 0
@@ -2731,9 +2730,8 @@ class GuiMicroscope:
                     self._run_acquire_task = self.root.after(
                         wait_ms, _run_acquire)
                 else:
-                    self.scope.finish_all_tasks()
-                    self._set_running_mode('None')
-                    print('Acquire -> finished\n')
+                    self._release_focus_and_finish(
+                        'acquire', self.running_acquire)
                 return None
             _run_acquire()
             return None
