@@ -46,7 +46,6 @@ class GuiMicroscope:
         self.init_settings()        # collects settings from GUI
         self.init_acquire()         # microscope methods
         self.init_cancel_process()  # a way to cancel longer processes
-        self.init_running_mode()    # toggles between different modes
         # optionally initialize microscope:
         if init_microscope:
             self.max_allocated_bytes = 100e9
@@ -2606,8 +2605,8 @@ class GuiMicroscope:
             "effect use 'Scout mode'.") 
         # scout mode:
         def _scout_mode():
-            self._set_running_mode('scout_mode')
             if self.running_scout_mode.get():
+                self.running_live_mode.set(False) # live mode default off
                 self._snap_and_display()
             return None
         self.running_scout_mode = tk.BooleanVar()
@@ -2730,6 +2729,7 @@ class GuiMicroscope:
                     self._run_acquire_task = self.root.after(
                         wait_ms, _run_acquire)
                 else:
+                    self.scope.finish_all_tasks()
                     self._release_focus_and_finish(
                         'acquire', self.running_acquire)
                 return None
@@ -2803,71 +2803,6 @@ class GuiMicroscope:
         # hide cancel popup and release set:
         self.cancel_popup.withdraw()
         self.cancel_popup.grab_release()
-        return None
-
-    def init_running_mode(self):
-        # define mode variable and dictionary:
-        self.running_mode = tk.StringVar()
-        self.mode_to_variable = {'grid_preview': self.running_grid_preview,
-                                 'tile_preview': self.running_tile_preview,
-                                 'live_mode':    self.running_live_mode,
-                                 'scout_mode':   self.running_scout_mode,
-                                 'acquire':      self.running_acquire}
-        self.scout_mode_status = tk.BooleanVar()
-        # cancel running mode popup:
-        self.cancel_running_mode_popup = tk.Toplevel()
-        self.cancel_running_mode_popup.title('Cancel current process')
-        x, y = self.root.winfo_x(), self.root.winfo_y() # center popup
-        self.cancel_running_mode_popup.geometry("+%d+%d" % (x + 1200, y + 600))
-        self.cancel_running_mode_popup.withdraw()
-        # cancel button:
-        def _cancel():
-            print('\n *** Canceled -> ' + self.running_mode.get() + ' *** \n')
-            self._set_running_mode('None')
-            return None
-        self.cancel_running_mode_button = tk.Button(
-            self.cancel_running_mode_popup,
-            font=('Segoe UI', '10', 'bold'),
-            bg='red',
-            command=_cancel,
-            width=25,
-            height=2)
-        self.cancel_running_mode_button.grid(row=8, column=0, padx=10, pady=10)
-        cancel_running_mode_tip = Hovertip(
-            self.cancel_running_mode_button,
-            "Cancel the current process.\n" +
-            "NOTE: this is not immediate since some processes must finish\n" +
-            "once launched.")
-        return None
-
-    def _set_running_mode(self, mode):
-        if mode != 'None':
-            # record status of scout mode:
-            self.scout_mode_status.set(self.running_scout_mode.get())
-            # turn everything off except current mode:
-            for v in self.mode_to_variable.values():
-                if v != self.mode_to_variable[mode]:
-                    v.set(0)
-        if mode in ('grid_preview', 'tile_preview', 'acquire'):
-            # update cancel text:
-            self.running_mode.set(mode) # string for '_cancel' print
-            self.cancel_running_mode_button.config(text=('Cancel: ' + mode))
-            # display cancel popup and grab set:
-            self.cancel_running_mode_popup.deiconify()
-            self.cancel_running_mode_popup.update()
-            self.cancel_running_mode_popup.grab_set()
-        if mode == 'None':
-            # turn everything off:
-            for v in self.mode_to_variable.values():
-                v.set(0)
-            # kill any remaining .after tasks from '_run_acquire':
-            if hasattr(self, '_run_acquire_task'):
-                self.root.after_cancel(self._run_acquire_task)
-            # hide cancel popup and release set:
-            self.cancel_running_mode_popup.withdraw()
-            self.cancel_running_mode_popup.grab_release()
-            # re-apply scout mode:
-            self.running_scout_mode.set(self.scout_mode_status.get())
         return None
 
 if __name__ == '__main__':
