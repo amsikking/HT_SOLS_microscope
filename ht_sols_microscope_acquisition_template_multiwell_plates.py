@@ -1,8 +1,5 @@
 import time
-import os
-import numpy as np
 from datetime import datetime
-from tifffile import imread, imwrite
 
 import ht_sols_microscope as ht_sols
 
