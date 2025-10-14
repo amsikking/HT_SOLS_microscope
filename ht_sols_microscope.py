@@ -1362,6 +1362,92 @@ class DataTraditional:
         data_traditional = np.concatenate(tzcyx, axis=0)
         return data_traditional # even larger!
 
+# Convenience functions:
+
+def get_multiwell_plate_positions(
+    # Get a tuple of multiwell plate positions with a position string (label)
+    # and XY positions (mm) based on a standard multiwell plate format. The
+    # function is somewhat general to cater to both standard (e.g.
+    # 96-well) plates or other formats, and can tile with a custom spacing
+    # (e.g. set to 1 FOV for touching tiles, 0.9 FOV for 10% overlap or
+    # 2x FOV to space out tiles). Use the 'start' and 'stop' args to define
+    # a sub region and the A1 args to reset/recalibrate the location of A1.
+    total_rows,                 # int   ( 8 for 96-well, 16 for 384-well)
+    total_cols,                 # int   (12 for 96-well, 24 for 384-well)
+    well_spacing_mm,            # float (4.5mm for 96-well, 9mm for 384-well)
+    start,                      # string (A1, C3, etc)
+    stop,                       # string (B2, F5, etc)
+    tile_rows,                  # int (1, 2, 3 etc rows of adjacent tiles)
+    tile_cols,                  # int (1, 2, 3 etc columns of adjacent tiles)
+    tile_spacing_X_mm,          # float (X spacing between tiles mm, 1 FOV?)
+    tile_spacing_Y_mm,          # float (Y spacing between tiles mm, 1 FOV?)
+    A1_ul_X_mm,                 # float (A1 upper left X position mm)
+    A1_ul_Y_mm,                 # float (A1 upper left Y position mm)
+    A1_lr_X_mm,                 # float (A1 lower right X position mm)
+    A1_lr_Y_mm,                 # float (A1 lower right Y position mm)
+    ):
+    # check total rows, cols and spacing:
+    assert 1 <= total_rows <= 16, 'unexpected total_rows (%s)'%total_rows
+    row_labels = tuple([chr(ord('A') + i) for i in range(total_rows)])
+    assert 1 <= total_cols <= 24, 'unexpected total_cols (%s)'%total_cols
+    col_labels = tuple(range(1, total_cols + 1))
+    assert isinstance(well_spacing_mm, (int, float)), (
+        'unexpected well_spacing_mm (%s)'%well_spacing_mm)
+    # check start and stop:
+    start_char, stop_char = start[0], stop[0]
+    start_num, stop_num = int(start[1:]), int(stop[1:])
+    assert start_char in row_labels, 'unexpected start_char (%s)'%start_char
+    assert stop_char  in row_labels, 'unexpected stop_char (%s)'%stop_char
+    assert start_num  in col_labels, 'unexpected start_num (%s)'%start_num
+    assert stop_num   in col_labels, 'unexpected stop_num (%s)'%stop_num
+    row_start = row_labels.index(start_char)
+    row_stop  = row_labels.index(stop_char) + 1
+    col_start = col_labels.index(start_num)
+    col_stop  = col_labels.index(stop_num) + 1
+    assert row_start <= row_stop, (
+        'require row_start (%s) <= row_stop (%s)'%(row_start, row_stop))
+    assert col_start <= col_stop, (
+        'require col_start (%s) <= col_stop (%s)'%(col_start, col_stop))
+    # check tiles and calculate offset to center them in the well:
+    assert 1 <= tile_rows <= 100, 'tile_rows out of range (%s)'%tile_rows
+    assert 1 <= tile_cols <= 100, 'tile_cols out of range (%s)'%tile_cols
+    tile_offset_X_mm = 0.5 * (tile_rows - 1) * tile_spacing_X_mm
+    tile_offset_Y_mm = 0.5 * (tile_cols - 1) * tile_spacing_Y_mm
+    # check A1 positions and calculate center:
+    assert isinstance(A1_ul_X_mm, (int, float)), (
+        'unexpected A1_ul_X_mm (%s)'%A1_ul_X_mm)
+    assert isinstance(A1_ul_Y_mm, (int, float)), (
+        'unexpected A1_ul_Y_mm (%s)'%A1_ul_Y_mm)
+    assert isinstance(A1_lr_X_mm, (int, float)), (
+        'unexpected A1_lr_X_mm (%s)'%A1_lr_X_mm)
+    assert isinstance(A1_lr_Y_mm, (int, float)), (
+        'unexpected A1_lr_Y_mm (%s)'%A1_lr_Y_mm)
+    A1_X_mm = A1_ul_X_mm - 0.5 * (A1_ul_X_mm - A1_lr_X_mm)
+    A1_Y_mm = A1_ul_Y_mm - 0.5 * (A1_ul_Y_mm - A1_lr_Y_mm)
+    # generate position array:
+    multiwell_plate_positions = []
+    for c in range(col_start, col_stop):
+        rows_range = range(row_start, row_stop)
+        if c % 2: # odd number: snake
+            rows_range = reversed(rows_range)
+        for r in rows_range: # move faster y-axis more frequently:
+            for tc in range(tile_cols):
+                tile_rows_range = range(tile_rows)
+                if tc % 2:  # odd number: snake
+                    tile_rows_range = reversed(tile_rows_range)
+                for tr in tile_rows_range: # move faster y-axis more frequently:
+                    position_string = '%s%02ir%02ic%02i'%(
+                        row_labels[r], col_labels[c], tr, tc)
+                    well_X_mm = A1_X_mm - c * well_spacing_mm # -ve for x
+                    well_Y_mm = A1_Y_mm + r * well_spacing_mm # +ve for y
+                    tile_X_mm =   tile_offset_X_mm - tc * tile_spacing_X_mm
+                    tile_Y_mm = - tile_offset_Y_mm + tr * tile_spacing_Y_mm
+                    XY_mm = (well_X_mm + tile_X_mm,
+                             well_Y_mm + tile_Y_mm,
+                             'absolute')
+                    multiwell_plate_positions.append((position_string, XY_mm))
+    return tuple(multiwell_plate_positions)
+
 if __name__ == '__main__':
     t0 = time.perf_counter()
 
