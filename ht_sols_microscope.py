@@ -394,12 +394,11 @@ class Microscope:
             os.makedirs(folder_name + '\\preview')                    
         assert type(filename) is str
         if folder_name is None:
-            folder_index = 0
-            dt = datetime.strftime(datetime.now(),'%Y-%m-%d_%H-%M-%S')
-            folder_name = dt + '_%03i_ht_sols'%folder_index
+            dt, i, l = prepend_datetime(), 0, 'ht_sols'
+            folder_name = dt + '%03i_'%i + l
             while os.path.exists(folder_name): # check overwriting
-                folder_index +=1
-                folder_name = dt + '_%03i_ht_sols'%folder_index
+                i +=1
+                folder_name = dt + '%03i_'%i + l
             make_folders(folder_name)
         else:
             if not os.path.exists(folder_name): make_folders(folder_name)
