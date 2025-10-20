@@ -1238,7 +1238,7 @@ class DataTraditional:
 # Convenience functions:
 
 def prepend_datetime(string):
-    dt = datetime.strftime(datetime.now(),'%Y-%m-%d_%H-%M-%S')
+    dt = datetime.strftime(datetime.now(),'%Y-%m-%d_%H-%M-%S_')
     return dt + string
 
 def get_multiwell_plate_positions(
