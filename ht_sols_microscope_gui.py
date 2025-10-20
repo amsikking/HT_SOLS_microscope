@@ -101,15 +101,6 @@ class GuiMicroscope:
                 self.root.after(int(1e3/10), _run_check_microscope) # 10fps
                 return None
             _run_check_microscope()
-            # run snoutfocus periodically:
-            def _run_snoutfocus():
-                if not self.running_acquire.get():
-                    self.scope.snoutfocus(settle_vibrations=False)
-                wait_ms = int(round(5 * 60 * 1e3))
-                self.root.after(wait_ms, _run_snoutfocus)
-                return None
-##            _run_snoutfocus()
-            self.scope.snoutfocus_piezo.set_voltage(75/2)
             # make session folder:
             dt = datetime.strftime(datetime.now(),'%Y-%m-%d_%H-%M-%S_')
             self.session_folder = dt + 'ht_sols_gui_session\\'
