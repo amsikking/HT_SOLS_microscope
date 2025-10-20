@@ -66,9 +66,8 @@ if __name__ == '__main__': # required block for sols_microscope
     positions = len(XY_stage_positions)
 
     # Make folder name for data:
-    folder_label = 'ht_sols_acquisition_template'  # edit name to preference
-    dt = datetime.strftime(datetime.now(),'%Y-%m-%d_%H-%M-%S_000_')
-    folder_name = dt + folder_label
+    folder_name = ht_sols.prepend_datetime(
+        'ht_sols_acquisition_software_autofocus')
 
     # Decide parameters for acquisition:
     time_points = 2     # how many time points for full acquisition?
