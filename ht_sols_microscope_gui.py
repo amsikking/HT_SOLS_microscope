@@ -2,7 +2,6 @@
 import os
 import time
 import tkinter as tk
-from datetime import datetime
 from idlelib.tooltip import Hovertip
 from tkinter import filedialog
 from tkinter import font
@@ -102,8 +101,7 @@ class GuiMicroscope:
                 return None
             _run_check_microscope()
             # make gui folder:
-            dt = datetime.strftime(datetime.now(),'%Y-%m-%d_%H-%M-%S_')
-            self.folder = dt + 'ht_sols_gui\\'
+            self.folder = ht_sols.prepend_datetime('ht_sols_gui\\')
             os.makedirs(self.folder)
             # snap a volume and enable scout mode:
             self.last_acquire_task = self.scope.acquire()
@@ -1217,14 +1215,11 @@ class GuiMicroscope:
         return None
 
     def _get_folder_name(self):
-        dt = datetime.strftime(datetime.now(),'%Y-%m-%d_%H-%M-%S_')
-        i = 0
-        folder_name = (
-            self.folder + dt + '%03i_'%i + self.label_textbox.text)
+        dt, i, l = ht_sols.prepend_datetime(), 0, self.label_textbox.text
+        folder_name = self.folder + dt + '%03i_'%i + l
         while os.path.exists(folder_name): # check before overwriting
             i +=1
-            folder_name = (
-                self.folder + dt + '%03i_'%i + self.label_textbox.text)
+            folder_name = self.folder + dt + '%03i_'%i + l
         return folder_name
 
     def init_tile_navigator(self):
@@ -1937,11 +1932,9 @@ class GuiMicroscope:
             self.focus_piezo_position_list = []
             self.XY_stage_position_list = []
             # clear the files:
-            with open(
-                self.folder + "focus_piezo_position_list.txt", "w"):
+            with open(self.folder + "focus_piezo_position_list.txt", "w"):
                 pass
-            with open(
-                self.folder + "XY_stage_position_list.txt", "w"):
+            with open(self.folder + "XY_stage_position_list.txt", "w"):
                 pass
             # update gui:
             self.total_positions.set(0)
