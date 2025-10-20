@@ -101,10 +101,10 @@ class GuiMicroscope:
                 self.root.after(int(1e3/10), _run_check_microscope) # 10fps
                 return None
             _run_check_microscope()
-            # make session folder:
+            # make gui folder:
             dt = datetime.strftime(datetime.now(),'%Y-%m-%d_%H-%M-%S_')
-            self.session_folder = dt + 'ht_sols_gui_session\\'
-            os.makedirs(self.session_folder)
+            self.folder = dt + 'ht_sols_gui\\'
+            os.makedirs(self.folder)
             # snap a volume and enable scout mode:
             self.last_acquire_task = self.scope.acquire()
             self.running_scout_mode.set(True)
@@ -1218,15 +1218,13 @@ class GuiMicroscope:
 
     def _get_folder_name(self):
         dt = datetime.strftime(datetime.now(),'%Y-%m-%d_%H-%M-%S_')
-        folder_index = 0
+        i = 0
         folder_name = (
-            self.session_folder + dt +
-            '%03i_'%folder_index + self.label_textbox.text)
+            self.folder + dt + '%03i_'%i + self.label_textbox.text)
         while os.path.exists(folder_name): # check before overwriting
-            folder_index +=1
+            i +=1
             folder_name = (
-                self.session_folder + dt +
-                '%03i_'%folder_index + self.label_textbox.text)
+                self.folder + dt + '%03i_'%i + self.label_textbox.text)
         return folder_name
 
     def init_tile_navigator(self):
@@ -1446,7 +1444,7 @@ class GuiMicroscope:
             load_grid_from_file_button,
             "Use the 'Load from file' button to select a text file\n" +
             "'grid_navigator_parameters.txt' from a previous \n" +
-            "'sols_gui_session' folder and load these settings into\n" +
+            "'ht_sols_gui' folder and load these settings into\n" +
             "the GUI.\n"
             "NOTE: this will overwrite any existing grid parameters")
         # create grid popup:
@@ -1523,7 +1521,7 @@ class GuiMicroscope:
             self.move_to_grid_location_button.config(state='disabled')
             self.start_grid_preview_button.config(state='disabled')
             # overwrite grid file:
-            with open(self.session_folder +
+            with open(self.folder +
                       "grid_navigator_parameters.txt", "w") as file:
                 file.write('rows:%i'%self.grid_rows.value.get() + '\n')
                 file.write('columns:%i'%self.grid_cols.value.get() + '\n')
@@ -1886,7 +1884,7 @@ class GuiMicroscope:
             folder_path = tk.filedialog.askdirectory(
                 parent=self.root,
                 initialdir=os.getcwd(),
-                title='Please choose a previous "gui session" folder')
+                title='Please choose a previous "ht_sols_gui" folder')
             # read files, parse into lists and update attributes:
             focus_piezo_file_path = (
                 folder_path + '\\focus_piezo_position_list.txt')
@@ -1908,11 +1906,11 @@ class GuiMicroscope:
                 XY_stage_position_list[i] = XY_stage_position_mm
                 self.XY_stage_position_list.append(XY_stage_position_mm)
             # append positions to files:
-            with open(self.session_folder +
+            with open(self.folder +
                       "focus_piezo_position_list.txt", "a") as file:
                 for i in range(len(focus_piezo_position_list)):
                     file.write(str(focus_piezo_position_list[i]) + ',\n')
-            with open(self.session_folder +
+            with open(self.folder +
                       "XY_stage_position_list.txt", "a") as file:
                 for i in range(len(XY_stage_position_list)):
                     file.write(str(XY_stage_position_list[i]) + ',\n')
@@ -1930,7 +1928,7 @@ class GuiMicroscope:
         load_from_folder_tip = Hovertip(
             load_from_folder_button,
             "Use the 'Load from folder' button to select a previous \n" +
-            "'sols_gui_session' folder and load the associated position\n" +
+            "'ht_sols_gui' folder and load the associated position\n" +
             "list into the GUI.\n" +
             "NOTE: this will overwrite any existing position list")
         # delete all:
@@ -1940,10 +1938,10 @@ class GuiMicroscope:
             self.XY_stage_position_list = []
             # clear the files:
             with open(
-                self.session_folder + "focus_piezo_position_list.txt", "w"):
+                self.folder + "focus_piezo_position_list.txt", "w"):
                 pass
             with open(
-                self.session_folder + "XY_stage_position_list.txt", "w"):
+                self.folder + "XY_stage_position_list.txt", "w"):
                 pass
             # update gui:
             self.total_positions.set(0)
@@ -1960,7 +1958,7 @@ class GuiMicroscope:
             delete_all_positions_button,
             "The 'Delete all positions' button clears the current position\n" +
             "list in the GUI and updates the associated .txt files in the\n" +
-            "'sols_gui_session' folder.\n" +
+            "'ht_sols_gui' folder.\n" +
             "NOTE: this operation cannot be reversed.")
         # delete current:
         def _delete_current_position():
@@ -1970,11 +1968,11 @@ class GuiMicroscope:
             self.focus_piezo_position_list.pop(i)
             self.XY_stage_position_list.pop(i)
             # update files:
-            with open(self.session_folder +
+            with open(self.folder +
                       "focus_piezo_position_list.txt", "w") as file:
                 for i in range(len(self.focus_piezo_position_list)):
                     file.write(str(self.focus_piezo_position_list[i]) + ',\n')
-            with open(self.session_folder +
+            with open(self.folder +
                       "XY_stage_position_list.txt", "w") as file:
                 for i in range(len(self.XY_stage_position_list)):
                     file.write(str(self.XY_stage_position_list[i]) + ',\n')
@@ -1993,7 +1991,7 @@ class GuiMicroscope:
             delete_current_position_button,
             "The 'Delete current position' button clears the current \n" +
             "position from the position list in the GUI and updates \n" +
-            "the associated .txt files in the 'sols_gui_session' folder.\n" +
+            "the associated .txt files in the 'ht_sols_gui' folder.\n" +
             "NOTE: this operation cannot be reversed.")
         # total positions:
         self.total_positions = tk.IntVar()
@@ -2009,7 +2007,7 @@ class GuiMicroscope:
             total_positions_frame,
             "The 'Total positions' displays the total number of positions\n" +
             "currently stored in the position list (both in the GUI and the\n" +
-            "associated .txt files in the 'sols_gui_session' folder.\n")
+            "associated .txt files in the 'ht_sols_gui' folder.\n")
         # utility function:
         def _update_position(how):
             current_position = self.current_position.get()
@@ -2126,10 +2124,10 @@ class GuiMicroscope:
         self.total_positions.set(positions)
         self.current_position.set(positions)
         # write to file:
-        with open(self.session_folder +
+        with open(self.folder +
                   "focus_piezo_position_list.txt", "a") as file:
             file.write(str(self.focus_piezo_position_list[-1]) + ',\n')
-        with open(self.session_folder +
+        with open(self.folder +
                   "XY_stage_position_list.txt", "a") as file:
             file.write(str(self.XY_stage_position_list[-1]) + ',\n')
         return None
