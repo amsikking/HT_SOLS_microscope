@@ -1237,6 +1237,10 @@ class DataTraditional:
 
 # Convenience functions:
 
+def prepend_datetime(string):
+    dt = datetime.strftime(datetime.now(),'%Y-%m-%d_%H-%M-%S')
+    return dt + string
+
 def get_multiwell_plate_positions(
     # Get a tuple of multiwell plate positions with a position string (label)
     # and XY positions (mm) based on a standard multiwell plate format. The
@@ -1347,9 +1351,7 @@ if __name__ == '__main__':
         ).get_result()
 
     # Run acquire:
-    folder_label = 'ht_sols_test_data'
-    dt = datetime.strftime(datetime.now(),'%Y-%m-%d_%H-%M-%S_000_')
-    folder_name = dt + folder_label
+    folder_name = prepend_datetime('ht_sols_test_data')
     for i in range(3):
         scope.acquire(
             filename='%06i.tif'%i,
