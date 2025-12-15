@@ -2021,19 +2021,18 @@ class GuiMicroscope:
             if how == 'end':
                 p = total_positions
             # record status of scout mode and switch off:
-            self.scout_mode_status.set(self.running_scout_mode.get())
-            self.running_scout_mode.set(0) # avoids snap from focus piezo                
+            scout_mode_status = self.running_scout_mode.get()
+            self.running_scout_mode.set(0)
             # move:
             if not self.autofocus_enabled.get():
                 self.focus_piezo_z_um.update_and_validate(
                     self.focus_piezo_position_list[p - 1])
-            self._update_XY_stage_position(
-                self.XY_stage_position_list[p - 1])
+            self._update_XY_stage_position(self.XY_stage_position_list[p - 1])
             # update gui and snap:
             self.current_position.set(p)
             self._snap_and_display()
             # re-apply scout mode:
-            self.running_scout_mode.set(self.scout_mode_status.get())
+            self.running_scout_mode.set(scout_mode_status)
             return None
         # move to start:
         move_to_start_button = tk.Button(
