@@ -261,9 +261,15 @@ class GuiMicroscope:
         button_width, button_height = 10, 1
         # focus slider:
         ls_focus_adjust_step = 0.005
+        hovertip = (
+            "The 'focus_adjust' setting adjusts the position of the\n" +
+            "light-sheet with respect to the focal plane. This can help\n" +
+            "improve resolution and contrast between different samples\n" +
+            "and different optical configurations.\n")
         self.ls_focus_adjust_v = tkcw.CheckboxSliderSpinbox(
             frame,
             label='focus adjust (V)',
+            hovertip=hovertip,
             checkbox_enabled=False,
             slider_fast_update=True,
             slider_length=290,
@@ -282,12 +288,6 @@ class GuiMicroscope:
                 self._snap_and_display()
             return None
         self.ls_focus_adjust_v.value.trace_add('write', _update_focus)
-        ls_focus_adjust_tip = Hovertip(
-            self.ls_focus_adjust_v,
-            "The 'focus_adjust' setting adjusts the position of the\n" +
-            "light-sheet with respect to the focal plane. This can help\n" +
-            "improve resolution and contrast between different samples\n" +
-            "and different optical configurations.\n")
         # -ve button:
         button_ls_focus_adjust_negative = tk.Button(
             frame,
@@ -321,9 +321,17 @@ class GuiMicroscope:
         ls_angular_dither_min = 0
         ls_angular_dither_max = 1
         ls_angular_dither_some = 0.5
+        hovertip = (
+            "The 'angular_dither' setting adjusts how much the light-sheet\n" +
+            "angle is dithered during an acquisition. This can help reduce\n" +
+            "''streaking' artefacts from the sample absorbing and/or\n" +
+            "scattering the light-sheet.\n" +
+            "NOTE: this may not help with very short exposure times if the\n" +
+            "galvo scanner cannot dither the light-sheet fast enough.")
         self.ls_angular_dither_v = tkcw.CheckboxSliderSpinbox(
             frame,
             label='angular dither (V)',
+            hovertip=hovertip,
             checkbox_enabled=False,
             slider_fast_update=True,
             slider_length=290,
@@ -342,14 +350,6 @@ class GuiMicroscope:
                 self._snap_and_display()
             return None
         self.ls_angular_dither_v.value.trace_add('write', _update_dither)
-        ls_angular_dither_tip = Hovertip(
-            self.ls_angular_dither_v,
-            "The 'angular_dither' setting adjusts how much the light-sheet\n" +
-            "angle is dithered during an acquisition. This can help reduce\n" +
-            "''streaking' artefacts from the sample absorbing and/or\n" +
-            "scattering the light-sheet.\n" +
-            "NOTE: this may not help with very short exposure times if the\n" +
-            "galvo scanner cannot dither the light-sheet fast enough.")
         # min button:
         button_ls_angular_dither_min = tk.Button(
             frame,
@@ -386,9 +386,15 @@ class GuiMicroscope:
         frame = tk.LabelFrame(self.root, text='CAMERA', bd=6)
         frame.grid(row=1, column=1, rowspan=4, padx=5, pady=5, sticky='n')
         # illumination_time_us:
+        hovertip = (
+            "The 'illumination time (us)' determines how long the sample\n" +
+            "will be exposed to light (i.e. the camera will collect the\n" +
+            "emmitted light during this time).\n" +
+            "NOTE: the range in the GUI is 100us to 1000000us (1s).")
         self.illumination_time_us = tkcw.CheckboxSliderSpinbox(
             frame,
             label='illumination time (us)',
+            hovertip=hovertip,
             checkbox_enabled=False,
             slider_enabled=False,
             min_value=100,
@@ -402,16 +408,16 @@ class GuiMicroscope:
             'write',
             lambda var, index, mode: self.scope.apply_settings(
                 illumination_time_us=self.illumination_time_us.value.get()))
-        illumination_time_us_tip = Hovertip(
-            self.illumination_time_us,
-            "The 'illumination time (us)' determines how long the sample\n" +
-            "will be exposed to light (i.e. the camera will collect the\n" +
-            "emmitted light during this time).\n" +
-            "NOTE: the range in the GUI is 100us to 1000000us (1s).")
         # height_px:
+        hovertip = (
+            "The 'height pixels' determines how many vertical pixels are\n" +
+            "used by the camera. Less pixels is a smaller field of view\n" +
+            "(FOV) and less data.\n" +
+            "NOTE: less vertical pixels speeds up the acquisition!")
         self.height_px = tkcw.CheckboxSliderSpinbox(
             frame,
             label='height pixels',
+            hovertip=hovertip,
             orient='vertical',
             checkbox_enabled=False,
             slider_length=200,
@@ -426,16 +432,15 @@ class GuiMicroscope:
             'write',
             lambda var, index, mode: self.scope.apply_settings(
                 height_px=self.height_px.value.get()))
-        height_px_tip = Hovertip(
-            self.height_px,
-            "The 'height pixels' determines how many vertical pixels are\n" +
-            "used by the camera. Less pixels is a smaller field of view\n" +
-            "(FOV) and less data.\n" +
-            "NOTE: less vertical pixels speeds up the acquisition!")
         # width_px:
+        hovertip = (
+            "The 'width pixels' determines how many horizontal pixels are\n" +
+            "used by the camera. Less pixels is a smaller field of view\n" +
+            "(FOV) and less data.\n")
         self.width_px = tkcw.CheckboxSliderSpinbox(
             frame,
             label='width pixels',
+            hovertip=hovertip,
             checkbox_enabled=False,
             slider_length=260,
             tickinterval=4,
@@ -450,11 +455,6 @@ class GuiMicroscope:
             'write',
             lambda var, index, mode: self.scope.apply_settings(
                 width_px=self.width_px.value.get()))
-        width_px_tip = Hovertip(
-            self.width_px,
-            "The 'width pixels' determines how many horizontal pixels are\n" +
-            "used by the camera. Less pixels is a smaller field of view\n" +
-            "(FOV) and less data.\n")
         # ROI display:
         tkcw.CanvasRectangleSliderTrace2D(
             frame,
@@ -473,9 +473,15 @@ class GuiMicroscope:
         # scan slider:
         scan_range_um_min, scan_range_um_max = 1, 251
         scan_range_um_scout = 100
+        hovertip = (
+            "The '~scan range (um)' setting requests that the microscope\n" +
+            "use the chosen scan range when acquiring a volume.\n" +
+            "NOTE: the actual scan range is optimized by the microscope\n" +
+            "and may differ from the requested value.")
         self.scan_range_um = tkcw.CheckboxSliderSpinbox(
             frame,
             label='~scan range (um)',
+            hovertip=hovertip,
             checkbox_enabled=False,
             slider_length=slider_length,
             tickinterval=10,
@@ -487,13 +493,7 @@ class GuiMicroscope:
         self.scan_range_um.value.trace_add(
             'write',
             lambda var, index, mode: self.scope.apply_settings(
-                scan_range_um=self.scan_range_um.value.get()))        
-        scan_range_um_tip = Hovertip(
-            self.scan_range_um,
-            "The '~scan range (um)' setting requests that the microscope\n" +
-            "use the chosen scan range when acquiring a volume.\n" +
-            "NOTE: the actual scan range is optimized by the microscope\n" +
-            "and may differ from the requested value.")
+                scan_range_um=self.scan_range_um.value.get()))
         # scan min button:
         button_scan_range_um_min = tk.Button(
             frame,
@@ -527,9 +527,20 @@ class GuiMicroscope:
         # voxel slider:
         voxel_aspect_ratio_min, voxel_aspect_ratio_max = 1, 21
         voxel_aspect_ratio_scout = 10
+        hovertip = (
+            "The short answer: this determines how finely (or coarsely)\n" +
+            "the acquired volume is sampled.\n" +
+            "The real answer: the '~voxel aspect ratio' setting requests\n" +
+            "that the microscope acquires a volume with 'cuboid' pixels\n" +
+            "(i.e. voxels) that have the chosen aspect ratio. For example,\n" +
+            "a ratio of 2 gives voxels that are twice as long as they are\n" +
+            "wide.\n" +
+            "NOTE: the actual voxel aspect ratio is optimized by the \n" +
+            "microscope and may differ from the requested value.")
         self.voxel_aspect_ratio = tkcw.CheckboxSliderSpinbox(
             frame,
             label='~voxel aspect ratio',
+            hovertip=hovertip,
             checkbox_enabled=False,
             slider_length=slider_length,
             tickinterval=10,
@@ -542,17 +553,6 @@ class GuiMicroscope:
             'write',
             lambda var, index, mode: self.scope.apply_settings(
                 voxel_aspect_ratio=self.voxel_aspect_ratio.value.get()))        
-        voxel_aspect_ratio_tip = Hovertip(
-            self.voxel_aspect_ratio,
-            "The short answer: this determines how finely (or coarsely)\n" +
-            "the acquired volume is sampled.\n" +
-            "The real answer: the '~voxel aspect ratio' setting requests\n" +
-            "that the microscope acquires a volume with 'cuboid' pixels\n" +
-            "(i.e. voxels) that have the chosen aspect ratio. For example,\n" +
-            "a ratio of 2 gives voxels that are twice as long as they are\n" +
-            "wide.\n" +
-            "NOTE: the actual voxel aspect ratio is optimized by the \n" +
-            "microscope and may differ from the requested value.")
         # voxel min button:
         button_voxel_aspect_ratio_min = tk.Button(
             frame,
@@ -592,9 +592,16 @@ class GuiMicroscope:
         button_width, button_height = 10, 1
         # ri slider:
         ri_min, ri_max, ri_mid = 1.33, 1.51, 1.38
+        hovertip = (
+            "The '~refractive index' setting adjusts the zoom lens in the\n" +
+            "microscope to set the correct remote refocus magnification\n" +
+            "for best 3D imaging peformance.\n" +
+            "NOTE: search for 'AIRR microscopy' to understand more \n" +
+            "(doi:10.5281/zenodo.7425649).")
         self.sample_ri = tkcw.CheckboxSliderSpinbox(
             frame,
             label='~refractive index',
+            hovertip=hovertip,
             checkbox_enabled=False,
             slider_length=slider_length,
             tickinterval=6,
@@ -611,13 +618,6 @@ class GuiMicroscope:
                 self._snap_and_display()
             return None
         self.sample_ri.value.trace_add('write', _update_sample_ri)
-        sample_ri_tip = Hovertip(
-            self.sample_ri,
-            "The '~refractive index' setting adjusts the zoom lens in the\n" +
-            "microscope to set the correct remote refocus magnification\n" +
-            "for best 3D imaging peformance.\n" +
-            "NOTE: search for 'AIRR microscopy' to understand more \n" +
-            "(doi:10.5281/zenodo.7425649).")
         # ri min button:
         button_sample_ri_min = tk.Button(
             frame,
@@ -1161,9 +1161,16 @@ class GuiMicroscope:
         # projection angle slider:
         tilt_deg = int(round(np.rad2deg(ht_sols.tilt)))
         coverslip_deg, native_deg, traditional_deg = 0, 90 - tilt_deg, 90
+        hovertip = (
+            "The 'angle (deg)' setting adjusts the angle of the projection\n" +
+            "of the 3D object when running the microscope in 'Projection\n" +
+            "mode'.\n" +
+            "NOTE: For more understanding see \n" +
+            "https://doi.org/10.1038/s41592-021-01175-7")
         self.projection_angle_deg = tkcw.CheckboxSliderSpinbox(
             frame,
             label='angle (deg)',
+            hovertip=hovertip,
             checkbox_enabled=False,
             slider_length=310,
             tickinterval=6,
@@ -1178,13 +1185,6 @@ class GuiMicroscope:
                 self._snap_and_display()
             return None
         self.projection_angle_deg.value.trace_add('write', _update_angle)
-        projection_angle_tip = Hovertip(
-            self.projection_angle_deg,
-            "The 'angle (deg)' setting adjusts the angle of the projection\n" +
-            "of the 3D object when running the microscope in 'Projection\n" +
-            "mode'.\n" +
-            "NOTE: For more understanding see \n" +
-            "https://doi.org/10.1038/s41592-021-01175-7")
         # coverslip button:
         button_coverslip = tk.Button(
             frame,
@@ -1228,9 +1228,14 @@ class GuiMicroscope:
         button_width, button_height = 25, 2
         spinbox_width = 20
         # tile array width:
+        hovertip = (
+            "The 'Array height and width (tiles)' determines how many tiles\n" +
+            "the 'Start tile' button will generate. For example, 2 gives a\n" +
+            "2x2 array of tiles, 3 a 3x3 array, etc.")
         self.tile_rc = tkcw.CheckboxSliderSpinbox(
             frame,
             label='Array height and width (tiles)',
+            hovertip=hovertip,
             checkbox_enabled=False,
             slider_enabled=False,
             min_value=2,
@@ -1238,11 +1243,6 @@ class GuiMicroscope:
             default_value=2,
             row=0,
             width=spinbox_width)
-        tile_array_width_tip = Hovertip(
-            self.tile_rc,
-            "The 'Array height and width (tiles)' determines how many tiles\n" +
-            "the 'Start tile' button will generate. For example, 2 gives a\n" +
-            "2x2 array of tiles, 3 a 3x3 array, etc.")
         # save data and position:
         self.save_tile_data_and_position = tk.BooleanVar()
         save_tile_data_and_position_button = tk.Checkbutton(
@@ -2402,47 +2402,32 @@ class GuiMicroscope:
             "'Description' are not loaded. To load previous XYZ\n" +
             "positions use the 'POSITION LIST' panel.")
         # label textbox:
+        hovertip = (
+            "The label that will be used for the data folder (after the\n" +
+            "date and time stamp). Edit to preference")
         self.label_textbox = tkcw.Textbox(
             frame,
             label='Folder label',
+            hovertip=hovertip,
             default_text='ht_sols',
             row=1,
             width=spinbox_width,
             height=1)
-        label_textbox_tip = Hovertip(
-            self.label_textbox,
-            "The label that will be used for the data folder (after the\n" +
-            "date and time stamp). Edit to preference")
         # description textbox:
+        hovertip = (
+            "The text that will be recorded in the metadata '.txt' file\n" +
+            "(along with the microscope settings for that acquisition).\n" +
+            "Describe what you are doing here.")
         self.description_textbox = tkcw.Textbox(
             frame,
             label='Description',
+            hovertip=hovertip,
             default_text='what are you doing?',
             row=2,
             width=spinbox_width,
-            height=3)
-        description_textbox_tip = Hovertip(
-            self.description_textbox,
-            "The text that will be recorded in the metadata '.txt' file\n" +
-            "(along with the microscope settings for that acquisition).\n" +
-            "Describe what you are doing here.")       
+            height=3)       
         # volumes spinbox:
-        self.volumes_per_buffer = tkcw.CheckboxSliderSpinbox(
-            frame,
-            label='Volumes per acquire',
-            checkbox_enabled=False,
-            slider_enabled=False,
-            min_value=1,
-            max_value=1e3,
-            default_value=1,
-            row=3,
-            width=spinbox_width)
-        self.volumes_per_buffer.value.trace_add(
-            'write',
-            lambda var, index, mode: self.scope.apply_settings(
-                volumes_per_buffer=self.volumes_per_buffer.value.get()))
-        volumes_per_buffer_tip = Hovertip(
-            self.volumes_per_buffer,
+        hovertip = (
             "In short: How many back to back (as fast as possible) volumes\n" +
             "did you want for a given acquisition?\n" +
             "(If you are not sure or don't care then leave this as 1!)\n" +
@@ -2461,6 +2446,21 @@ class GuiMicroscope:
             "into a single file. More volumes is more data and a bigger\n" +
             "file. It's easy to end up with a huge file that is not a\n" +
             "'legal' .tiff (<~4GB) and is tricky to manipulate.\n")
+        self.volumes_per_buffer = tkcw.CheckboxSliderSpinbox(
+            frame,
+            label='Volumes per acquire',
+            hovertip=hovertip,
+            checkbox_enabled=False,
+            slider_enabled=False,
+            min_value=1,
+            max_value=1e3,
+            default_value=1,
+            row=3,
+            width=spinbox_width)
+        self.volumes_per_buffer.value.trace_add(
+            'write',
+            lambda var, index, mode: self.scope.apply_settings(
+                volumes_per_buffer=self.volumes_per_buffer.value.get()))
         # loop over positions:
         self.loop_over_position_list = tk.BooleanVar()
         loop_over_position_list_button = tk.Checkbutton(
@@ -2477,9 +2477,15 @@ class GuiMicroscope:
             "many positions so this should be taken into consideration \n" +
             "(especially for a time series).")
         # acquire number spinbox:
+        hovertip = (
+            "How many acquisitions did you want when you press\n" +
+            "the 'Run acquire' button?\n" +
+            "NOTE: there is no immediate limit here, but data \n" +
+            "accumulation and thermal drift can limit in practice.")
         self.acquire_number = tkcw.CheckboxSliderSpinbox(
             frame,
             label='Acquire number',
+            hovertip=hovertip,
             checkbox_enabled=False,
             slider_enabled=False,
             min_value=1,
@@ -2487,16 +2493,17 @@ class GuiMicroscope:
             default_value=1,
             row=5,
             width=spinbox_width)
-        acquire_number_spinbox_tip = Hovertip(
-            self.acquire_number,
-            "How many acquisitions did you want when you press\n" +
-            "the 'Run acquire' button?\n" +
-            "NOTE: there is no immediate limit here, but data \n" +
-            "accumulation and thermal drift can limit in practice.")
         # delay spinbox:
+        hovertip = (
+            "How long do you want to wait between acquisitions?\n" +
+            "NOTE: the GUI will attempt to achieve the requested interval.\n" +
+            "However, if the acquisition (which may include multiple \n" +
+            "colors/volumes/positions) takes longer than the requested\n" +
+            "delay then it will simply run as fast as it can.\n")
         self.delay_s = tkcw.CheckboxSliderSpinbox(
             frame,
             label='Inter-acquire delay (s) >=',
+            hovertip=hovertip,
             checkbox_enabled=False,
             slider_enabled=False,
             min_value=0,
@@ -2504,13 +2511,6 @@ class GuiMicroscope:
             default_value=0,
             row=6,
             width=spinbox_width)
-        delay_spinbox_tip = Hovertip(
-            self.delay_s,
-            "How long do you want to wait between acquisitions?\n" +
-            "NOTE: the GUI will attempt to achieve the requested interval.\n" +
-            "However, if the acquisition (which may include multiple \n" +
-            "colors/volumes/positions) takes longer than the requested\n" +
-            "delay then it will simply run as fast as it can.\n")        
         return None
 
     def init_acquire(self):
