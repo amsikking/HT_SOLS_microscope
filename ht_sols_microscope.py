@@ -175,7 +175,7 @@ class Microscope:
     def _init_Z_stage(self):
         if self.verbose: print("\n%s: opening Z stage..."%self.name)
         self.Z_stage = thorlabs_MLJ_Z_stage.ZStage(
-            which_ports=('COM11','COM12'),
+            which_ports=('COM12','COM17'),
             limits_mm=(0, 30),
             velocity_mmps=0.2,
             verbose=False)
